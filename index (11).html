@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COMER.SANO MX — Sistema Clínico v1789715644</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #F7F6F3;
+    --surface: #FFFFFF;
+    --surface2: #F0EEE9;
+    --border: #E2DDD6;
+    --border2: #C8C2B8;
+    --text: #1A1714;
+    --text2: #6B6560;
+    --text3: #9E9890;
+    --accent: #2D6A4F;
+    --accent-light: #E8F4EE;
+    --accent-text: #1B4332;
+    --warn: #92400E;
+    --warn-light: #FEF3C7;
+    --danger: #991B1B;
+    --danger-light: #FEE2E2;
+    --success: #166534;
+    --success-light: #DCFCE7;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+
+  /* LOGIN */
+  .login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .login-logo {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-family: 'Georgia', serif;
+    margin-bottom: 8px;
+  }
+
+  .login-title {
+    font-size: 26px;
+    font-weight: normal;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+
+  .login-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 36px;
+    font-family: sans-serif;
+  }
+
+  /* APP */
+  .app { display: none; }
+  .app.visible { display: flex; flex-direction: column; min-height: 100vh; }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topbar-logo {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: normal;
+    white-space: nowrap;
+  }
+
+  .topbar-divider { width: 1px; height: 20px; background: var(--border); }
+
+  .topbar-patient {
+    font-size: 13px;
+    color: var(--text);
+    font-family: sans-serif;
+    flex: 1;
+  }
+
+  .topbar-patient span {
+    color: var(--text2);
+    font-size: 12px;
+  }
+
+  .topbar-actions { display: flex; gap: 8px; margin-left: auto; }
+
+  /* LAYOUT */
+  .main { display: flex; flex: 1; }
+
+  .sidebar {
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    flex-shrink: 0;
+    overflow-y: auto;
+    height: calc(100vh - 56px);
+    position: sticky;
+    top: 56px;
+  }
+
+  .sidebar-section {
+    padding: 0 12px;
+    margin-bottom: 24px;
+  }
+
+  .sidebar-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    font-family: sans-serif;
+    padding: 0 8px;
+    margin-bottom: 6px;
+  }
+
+  .sidebar-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    font-size: 13px;
+    font-family: sans-serif;
+    cursor: pointer;
+    text-align: left;
+    transition: background .12s;
+  }
+
+  .sidebar-btn:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-btn.active { background: var(--accent-light); color: var(--accent-text); font-weight: 500; }
+
+  .sidebar-btn .icon { font-size: 15px; width: 20px; text-align: center; }
+
+  .px-list { max-height: 300px; overflow-y: auto; }
+
+  .px-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background .12s;
+  }
+
+  .px-item:hover { background: var(--surface2); }
+  .px-item.active { background: var(--accent-light); }
+
+  .px-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    font-family: sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .px-info { flex: 1; min-width: 0; }
+  .px-name { font-size: 12px; color: var(--text); font-family: sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .px-meta { font-size: 10px; color: var(--text3); font-family: sans-serif; }
+
+  /* CONTENT */
+  .content { flex: 1; padding: 24px; overflow-y: auto; }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    gap: 0;
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-family: sans-serif;
+    color: var(--text2);
+    border: none;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-bottom: -1px;
+    transition: color .12s;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent-text); border-bottom-color: var(--accent); font-weight: 500; }
+
+  /* CARDS & SECTIONS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .card-title {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text3);
+    font-family: sans-serif;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+
+  .field label {
+    font-size: 11px;
+    color: var(--text2);
+    font-family: sans-serif;
+    font-weight: 500;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: sans-serif;
+    color: var(--text);
+    transition: border-color .12s;
+    outline: none;
+    width: 100%;
+  }
+
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+
+  .field textarea { resize: vertical; min-height: 70px; }
+
+  /* BUTTONS */
+  .btn {
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: sans-serif;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--text);
+    transition: all .12s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { background: var(--surface2); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .btn-primary:hover { background: var(--accent-text); }
+
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  /* TOGGLE */
+  .toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .toggle-opt {
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    font-family: sans-serif;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--text2);
+    transition: all .12s;
+  }
+
+  .toggle-opt.sel-neg { background: var(--success-light); color: var(--success); border-color: #bbf7d0; }
+  .toggle-opt.sel-pos { background: var(--warn-light); color: var(--warn); border-color: #fde68a; }
+
+  .collapsible { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .collapsible.open { display: block; }
+
+  /* DIET TABLE */
+  .diet-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .diet-tab {
+    padding: 5px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    font-family: sans-serif;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--text2);
+  }
+  .diet-tab.active { background: var(--accent-light); color: var(--accent-text); border-color: #a7f3d0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: sans-serif; }
+  th { padding: 8px 10px; background: var(--surface2); color: var(--text2); font-weight: 500; border-bottom: 1px solid var(--border); text-align: left; font-size: 11px; }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+
+  .table-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    padding: 2px 4px;
+    font-size: 12px;
+    font-family: sans-serif;
+    color: var(--text);
+    width: 100%;
+    outline: none;
+  }
+  .table-input:focus { border-bottom-color: var(--accent); }
+
+  .table-select {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-family: sans-serif;
+    color: var(--text);
+    padding: 2px 4px;
+    outline: none;
+  }
+
+  .add-row-btn {
+    margin-top: 8px;
+    font-size: 12px;
+    font-family: sans-serif;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  /* TAGS */
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: sans-serif;
+  }
+  .tag-ok { background: var(--success-light); color: var(--success); }
+  .tag-warn { background: var(--warn-light); color: var(--warn); }
+  .tag-danger { background: var(--danger-light); color: var(--danger); }
+  .tag-info { background: var(--accent-light); color: var(--accent-text); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--text2);
+    font-family: sans-serif;
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state h3 { font-size: 16px; color: var(--text); margin-bottom: 6px; font-weight: normal; }
+  .empty-state p { font-size: 13px; margin-bottom: 20px; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    padding: 24px;
+    display: none;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .modal-title { font-size: 20px; font-weight: normal; margin-bottom: 4px; }
+  .modal-sub { font-size: 13px; color: var(--text2); font-family: sans-serif; margin-bottom: 24px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--text);
+    color: white;
+    padding: 12px 18px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: sans-serif;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all .25s;
+    z-index: 300;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* UTILS */
+  .mt8 { margin-top: 8px; }
+  .mt12 { margin-top: 12px; }
+  .mt16 { margin-top: 16px; }
+  .gap-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .text-muted { color: var(--text2); font-family: sans-serif; font-size: 12px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .grid3, .grid4 { grid-template-columns: 1fr 1fr; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <div class="login-logo">COMER.SANO MX</div>
+    <h1 class="login-title">Sistema Clínico</h1>
+    <p class="login-sub">Acceso restringido — uso exclusivo del consultorio</p>
+
+    <div class="field" style="margin-bottom:14px">
+      <label>Correo electrónico</label>
+      <input type="email" id="loginEmail" placeholder="ximena@alejo.net" value="ximena@alejo.net">
+    </div>
+    <div class="field" style="margin-bottom:24px">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:11px" onclick="handleLogin()">Entrar</button>
+    <p id="loginError" style="color:var(--danger);font-size:12px;font-family:sans-serif;margin-top:10px;display:none"></p>
+    <p style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-top:20px;text-align:center">
+      ¿Primera vez? <a href="#" onclick="handleSignup()" style="color:var(--accent)">Crear cuenta</a>
+    </p>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">COMER.SANO MX</div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-patient" id="topbarPatient">
+      <span>Selecciona un paciente para comenzar</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-sm btn-primary" onclick="openNewPx()">+ Nuevo paciente</button>
+      <button class="btn btn-sm" onclick="handleLogout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Pacientes</div>
+        <div class="px-list" id="pxList">
+          <div class="text-muted" style="padding:8px 10px">Cargando...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content" id="mainContent">
+      <div class="empty-state">
+        <div class="icon">🌿</div>
+        <h3>Bienvenida, Ximena</h3>
+        <p>Selecciona un paciente del panel izquierdo o crea uno nuevo para comenzar.</p>
+        <button class="btn btn-primary" onclick="openNewPx()">+ Nuevo paciente</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL NUEVO PACIENTE -->
+<div class="modal-overlay" id="newPxModal">
+  <div class="modal">
+    <div class="modal-title">Nuevo paciente</div>
+    <div class="modal-sub">Datos básicos para crear el expediente</div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="field"><label>Nombre completo</label><input type="text" id="npNombre" placeholder="María García"></div>
+      <div class="field"><label>Fecha de nacimiento</label><input type="date" id="npFecha"></div>
+    </div>
+    <div class="grid3" style="margin-bottom:14px">
+      <div class="field"><label>Sexo</label>
+        <select id="npSexo">
+          <option value="">Seleccionar</option>
+          <option>Femenino</option>
+          <option>Masculino</option>
+        </select>
+      </div>
+      <div class="field"><label>Motivo de consulta</label><input type="text" id="npMotivo" placeholder="Pérdida de peso"></div>
+      <div class="field"><label>Consultorio</label>
+        <select id="npConsultorio">
+          <option>H+ Torre 3</option>
+          <option>Hospital San Juan — Apaseo</option>
+          <option>Celaya</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row" style="border:none;padding:0;margin-top:16px">
+      <button class="btn btn-primary" onclick="createPaciente()">Crear expediente</button>
+      <button class="btn" onclick="closeModal('newPxModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://ggnurbdefdkbtvxhfkxf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnbnVyYmRlZmRrYnR2eGhma3hmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MDM3MjYsImV4cCI6MjEwNTI3OTcyNn0.c2ZmBl8a-e1vECmkLZz6jVbgM4mYXDnM2ELXJyhXg3I';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentPx = null;
+let currentTab = 'datos';
+let dietSemana = 'semana';
+
+// AUTH
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const pass = document.getElementById('loginPass').value;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginError').textContent = 'Correo o contraseña incorrectos';
+  } else {
+    currentUser = data.user;
+    showApp();
+  }
+}
+
+async function handleSignup() {
+  const email = document.getElementById('loginEmail').value;
+  const pass = document.getElementById('loginPass').value;
+  if (!email || !pass) { alert('Ingresa correo y contraseña'); return; }
+  const { error } = await sb.auth.signUp({ email, password: pass });
+  if (error) alert('Error: ' + error.message);
+  else alert('Cuenta creada. Revisa tu correo para confirmar.');
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  document.getElementById('loginWrap').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+}
+
+async function checkSession() {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    currentUser = data.session.user;
+    showApp();
+  }
+}
+
+function showApp() {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  loadPacientes();
+}
+
+// PACIENTES
+async function loadPacientes() {
+  const { data, error } = await sb.from('pacientes').select('*').order('nombre');
+  const list = document.getElementById('pxList');
+  if (error || !data.length) {
+    list.innerHTML = '<div class="text-muted" style="padding:8px 10px">Sin pacientes aún</div>';
+    return;
+  }
+  list.innerHTML = data.map(px => {
+    const initials = px.nombre.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const edad = px.fecha_nac ? Math.floor((new Date() - new Date(px.fecha_nac)) / 31557600000) : '—';
+    return `<div class="px-item" onclick="selectPx(${JSON.stringify(px).replace(/"/g,'&quot;')})" id="pxi-${px.id}">
+      <div class="px-avatar">${initials}</div>
+      <div class="px-info">
+        <div class="px-name">${px.nombre}</div>
+        <div class="px-meta">${edad} años · ${px.consultorio||'H+'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function createPaciente() {
+  const nombre = document.getElementById('npNombre').value.trim();
+  if (!nombre) { showToast('Ingresa el nombre del paciente'); return; }
+  const { data, error } = await sb.from('pacientes').insert({
+    nombre,
+    fecha_nac: document.getElementById('npFecha').value || null,
+    sexo: document.getElementById('npSexo').value,
+    motivo_consulta: document.getElementById('npMotivo').value,
+    consultorio: document.getElementById('npConsultorio').value,
+  }).select().single();
+  if (error) { showToast('Error al crear paciente: ' + error.message); return; }
+  closeModal('newPxModal');
+  showToast('Paciente creado');
+  await loadPacientes();
+  selectPx(data);
+}
+
+function selectPx(px) {
+  currentPx = px;
+  document.querySelectorAll('.px-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('pxi-' + px.id);
+  if (el) el.classList.add('active');
+  const edad = px.fecha_nac ? Math.floor((new Date() - new Date(px.fecha_nac)) / 31557600000) : '—';
+  document.getElementById('topbarPatient').innerHTML = `<strong>${px.nombre}</strong> <span>· ${edad} años · ${px.consultorio || 'H+ Torre 3'} · ${new Date().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})}</span>`;
+  renderTabs();
+}
+
+// TABS
+function renderTabs() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="tabs">
+      <button class="tab-btn ${currentTab==='datos'?'active':''}" onclick="switchTab('datos')">Datos del paciente</button>
+      <button class="tab-btn ${currentTab==='inbody'?'active':''}" onclick="switchTab('inbody')">InBody / Requerimientos</button>
+      <button class="tab-btn ${currentTab==='smae'?'active':''}" onclick="switchTab('smae')">Plan SMAE</button>
+      <button class="tab-btn ${currentTab==='labs'?'active':''}" onclick="switchTab('labs')">Laboratorios</button>
+      <button class="tab-btn ${currentTab==='recetario'?'active':''}" onclick="switchTab('recetario')">Recetario</button>
+      <button class="tab-btn ${currentTab==='seguimiento'?'active':''}" onclick="switchTab('seguimiento')">Seguimiento / Educación</button>
+      <button class="tab-btn ${currentTab==='pes'?'active':''}" onclick="switchTab('pes')">Notas PES / ADIME</button>
+    </div>
+    <div id="tabContent"></div>
+  `;
+  loadTab();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  renderTabs();
+}
+
+async function loadTab() {
+  const el = document.getElementById('tabContent');
+  if (currentTab === 'datos') await renderDatos(el);
+  else if (currentTab === 'inbody') await renderInBody(el);
+  else if (currentTab === 'smae') renderProxima(el, 'Plan SMAE');
+  else if (currentTab === 'labs') await renderLabs(el);
+  else if (currentTab === 'recetario') renderProxima(el, 'Recetario');
+  else if (currentTab === 'seguimiento') renderProxima(el, 'Seguimiento / Educación');
+  else if (currentTab === 'pes') renderProxima(el, 'Notas PES / ADIME');
+}
+
+function renderProxima(el, nombre) {
+  el.innerHTML = `<div class="empty-state">
+    <div class="icon">🔧</div>
+    <h3>${nombre}</h3>
+    <p>Esta sección estará lista en la siguiente fase del desarrollo.</p>
+  </div>`;
+}
+
+// TAB DATOS
+async function renderDatos(el) {
+  const { data: hc } = await sb.from('historias_clinicas').select('*').eq('paciente_id', currentPx.id).single();
+  const d = hc || {};
+
+  el.innerHTML = `
+  <!-- INFO GENERAL -->
+  <div class="card">
+    <div class="card-title">Información general</div>
+    <div class="grid4" style="margin-bottom:14px">
+      <div class="field"><label>Nombre</label><input type="text" id="hcNombre" value="${currentPx.nombre||''}"></div>
+      <div class="field"><label>Fecha de nacimiento</label><input type="date" id="hcFechaNac" value="${currentPx.fecha_nac||''}"></div>
+      <div class="field"><label>Sexo</label>
+        <select id="hcSexo">
+          <option ${currentPx.sexo==='Femenino'?'selected':''}>Femenino</option>
+          <option ${currentPx.sexo==='Masculino'?'selected':''}>Masculino</option>
+        </select>
+      </div>
+      <div class="field"><label>Estado civil</label>
+        <select id="hcEstadoCivil">
+          <option value="">Seleccionar</option>
+          ${['Soltero/a','Casado/a','Unión libre','Divorciado/a','Viudo/a'].map(o=>`<option ${d.estado_civil===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>Ocupación</label><input type="text" id="hcOcupacion" value="${d.ocupacion||''}"></div>
+      <div class="field"><label>Motivo de consulta</label><input type="text" id="hcMotivo" value="${currentPx.motivo_consulta||''}"></div>
+      <div class="field"><label>Consultorio</label>
+        <select id="hcConsultorio">
+          ${['H+ Torre 3','Hospital San Juan — Apaseo','Celaya'].map(o=>`<option ${currentPx.consultorio===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="grid2 mt12">
+      <div class="field"><label>Historia de peso</label><textarea id="hcHistPeso">${d.historia_peso||''}</textarea></div>
+      <div class="field"><label>Talla (m)</label><input type="number" id="hcTalla" step="0.01" placeholder="1.62" value="${d.talla||''}"></div>
+    </div>
+  </div>
+
+  <!-- AHF -->
+  <div class="card">
+    <div class="card-title">Antecedentes heredofamiliares</div>
+    <div class="grid3">
+      <div class="field"><label>Diabetes</label><input type="text" id="hcAhfDm" placeholder="Abuelos, tíos" value="${d.ahf_diabetes||''}"></div>
+      <div class="field"><label>Hipertensión</label><input type="text" id="hcAhfHta" placeholder="Papá" value="${d.ahf_hta||''}"></div>
+      <div class="field"><label>Cáncer</label><input type="text" id="hcAhfCa" placeholder="Abuela materna" value="${d.ahf_cancer||''}"></div>
+    </div>
+    <div class="field mt12"><label>Otros antecedentes familiares</label><textarea id="hcAhfOtros">${d.ahf_otros||''}</textarea></div>
+  </div>
+
+  <!-- APP -->
+  <div class="card">
+    <div class="card-title">Antecedentes personales patológicos</div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:500;color:var(--text2);font-family:sans-serif;margin-bottom:6px">Enfermedades</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:sans-serif;margin-bottom:6px">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px">Enfermedad / Diagnóstico</th>
+          <th style="text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;width:110px">Año de dx</th>
+        </tr></thead>
+        <tbody id="enfBody">
+          <tr>
+            <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="Ej. SOP, Diabetes tipo 2" id="enf_0_enf"></td>
+            <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" type="number" placeholder="2023" style="width:90px" id="enf_0_anio"></td>
+          </tr>
+        </tbody>
+      </table>
+      <button class="add-row-btn" onclick="addEnfRow()">+ Agregar enfermedad</button>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:500;color:var(--text2);font-family:sans-serif;margin-bottom:6px">Cirugías</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:sans-serif;margin-bottom:6px">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px">Cirugía</th>
+          <th style="text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;width:150px">Fecha aproximada</th>
+        </tr></thead>
+        <tbody id="cxBody">
+          <tr>
+            <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="Ej. Colecistectomía" id="cx_0_cx"></td>
+            <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" type="month" id="cx_0_fecha"></td>
+          </tr>
+        </tbody>
+      </table>
+      <button class="add-row-btn" onclick="addCxRow()">+ Agregar cirugía</button>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>Alergias</label><input type="text" id="hcAlergias" value="${d.alergias||''}"></div>
+      <div class="field"><label>Hospitalizaciones</label><input type="text" id="hcHosp" value="${d.hospitalizaciones||''}"></div>
+      <div class="field"><label>Síntomas gastrointestinales</label><input type="text" id="hcSxGi" value="${d.sx_gi||''}"></div>
+    </div>
+    <div class="field mt12"><label>Síntomas relacionados con embarazo</label><input type="text" id="hcSxEmb" value="${d.sx_embarazo||''}"></div>
+  </div>
+
+  <!-- APNP -->
+  <div class="card">
+    <div class="card-title">Antecedentes personales no patológicos</div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:500;color:var(--text2);font-family:sans-serif;margin-bottom:6px">Tabaquismo</div>
+      <div class="toggle-group" id="tgTab">
+        <div class="toggle-opt sel-neg" onclick="toggleHabito('tab','neg',this)">Negado</div>
+        <div class="toggle-opt" onclick="toggleHabito('tab','pos',this)">Positivo</div>
+        <div class="toggle-opt" onclick="toggleHabito('tab','ex',this)">Ex fumador/a</div>
+      </div>
+      <div class="collapsible ${d.tab_estado && d.tab_estado!=='neg'?'open':''}" id="detTab">
+        <div class="grid3 mt8">
+          <div class="field"><label>Tipo</label>
+            <select id="tabTipo"><option value="">—</option>${['Cigarrillo','Cigarro electrónico','Puro','Otro'].map(o=>`<option ${d.tab_tipo===o?'selected':''}>${o}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Frecuencia</label>
+            <select id="tabFrec"><option value="">—</option>${['Diario','Varios días/semana','Ocasional'].map(o=>`<option ${d.tab_frec===o?'selected':''}>${o}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Cantidad</label><input type="text" id="tabCant" placeholder="5 cigarros/día" value="${d.tab_cant||''}"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:500;color:var(--text2);font-family:sans-serif;margin-bottom:6px">Alcoholismo</div>
+      <div class="toggle-group" id="tgAlc">
+        <div class="toggle-opt sel-neg" onclick="toggleHabito('alc','neg',this)">Negado</div>
+        <div class="toggle-opt" onclick="toggleHabito('alc','pos',this)">Positivo</div>
+        <div class="toggle-opt" onclick="toggleHabito('alc','ex',this)">Ex bebedor/a</div>
+      </div>
+      <div class="collapsible ${d.alc_estado && d.alc_estado!=='neg'?'open':''}" id="detAlc">
+        <div class="grid3 mt8">
+          <div class="field"><label>Tipo de bebida</label>
+            <select id="alcTipo"><option value="">—</option>${['Cerveza','Vino','Destilados','Mixto','Otro'].map(o=>`<option ${d.alc_tipo===o?'selected':''}>${o}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Frecuencia</label>
+            <select id="alcFrec"><option value="">—</option>${['Diario','Fines de semana','Ocasional/social','Varios días/semana'].map(o=>`<option ${d.alc_frec===o?'selected':''}>${o}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Cantidad</label><input type="text" id="alcCant" placeholder="2-3 cervezas" value="${d.alc_cant||''}"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>Patrón de sueño</label><input type="text" id="hcSueno" placeholder="7 hrs, regular" value="${d.patron_sueno||''}"></div>
+    </div>
+    <div class="grid3 mt12">
+      <div class="field"><label>Tipo de actividad física</label><input type="text" id="hcAfTipo" placeholder="Caminata, natación..." value="${d.af_tipo||''}"></div>
+      <div class="field"><label>Frecuencia</label><input type="text" id="hcAfFrec" placeholder="3x/semana" value="${d.af_frec||''}"></div>
+      <div class="field"><label>Duración</label><input type="text" id="hcAfDur" placeholder="30 min" value="${d.af_dur||''}"></div>
+    </div>
+    <div class="grid2 mt12">
+      <div style="grid-column:1/-1">
+        <div style="font-size:11px;font-weight:500;color:var(--text2);font-family:sans-serif;margin-bottom:6px">Medicamentos</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:sans-serif;margin-bottom:6px">
+          <thead><tr>
+            <th style="text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px">Medicamento</th>
+            <th style="text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;width:120px">Dosis</th>
+            <th style="text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;width:140px">Frecuencia</th>
+          </tr></thead>
+          <tbody id="medsBody">
+            <tr>
+              <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="Metformina" onchange="updateListRow('med',0,'med',this.value)"></td>
+              <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="500 mg" onchange="updateListRow('med',0,'dosis',this.value)"></td>
+              <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="c/12 hrs" onchange="updateListRow('med',0,'frec',this.value)"></td>
+            </tr>
+          </tbody>
+        </table>
+        <button class="add-row-btn" onclick="addMedRow()">+ Agregar medicamento</button>
+      </div>
+      <div class="field"><label>Suplementos</label><textarea id="hcSups">${d.suplementos||''}</textarea></div>
+    </div>
+  </div>
+
+  <!-- AGO -->
+  <div class="card">
+    <div class="card-title">Antecedentes gineco-obstétricos</div>
+    <div class="grid4">
+      <div class="field"><label>Menstruación</label><input type="text" id="hcMens" value="${d.menstruacion||''}"></div>
+      <div class="field"><label>Embarazos</label><input type="number" id="hcEmb" min="0" value="${d.embarazos||''}"></div>
+      <div class="field"><label>Abortos</label><input type="number" id="hcAb" min="0" value="${d.abortos||''}"></div>
+      <div class="field"><label>Reemplazo hormonal</label>
+        <select id="hcRh">
+          <option value="">—</option>
+          <option ${d.reemplazo_hormonal==='No'?'selected':''}>No</option>
+          <option ${d.reemplazo_hormonal==='Sí'?'selected':''}>Sí</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- HÁBITOS -->
+  <div class="card">
+    <div class="card-title">Hábitos de alimentación</div>
+    <div class="grid4" style="margin-bottom:14px">
+      <div class="field"><label>Apetito</label>
+        <select id="hcApetito">
+          <option value="">—</option>
+          ${['Regular','Bueno','Excesivo','Reducido'].map(o=>`<option ${d.apetito===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Comidas al día</label><input type="text" id="hcComidas" placeholder="3" value="${d.comidas_dia||''}"></div>
+      <div class="field"><label>Tiempo en comer</label><input type="text" id="hcTiempoComida" placeholder="15 min" value="${d.tiempo_comida||''}"></div>
+      <div class="field"><label>Quién prepara</label><input type="text" id="hcQuienPrepara" value="${d.quien_prepara||''}"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>Dónde y con quién come</label><textarea id="hcDondecome">${d.donde_come||''}</textarea></div>
+      <div class="field"><label>Disgusto por alimentos</label><textarea id="hcDisgusto">${d.disgusto_alimentos||''}</textarea></div>
+      <div class="field"><label>Alimento favorito</label><textarea id="hcFavorito">${d.alimento_favorito||''}</textarea></div>
+    </div>
+  </div>
+
+  <!-- DIETA HABITUAL -->
+  <div class="card">
+    <div class="card-title">Dieta habitual</div>
+    <div class="diet-tabs">
+      <div class="diet-tab active" id="dtSemana" onclick="switchDietTab('semana')">Entre semana</div>
+      <div class="diet-tab" id="dtFinde" onclick="switchDietTab('finde')">Fin de semana</div>
+    </div>
+    <div id="dietTableWrap">
+      ${renderDietTable(d.dieta_semana || [], 'semana')}
+    </div>
+  </div>
+
+  <!-- CONTEXTO NUTRICIONAL PREVIO -->
+  <div class="card">
+    <div class="card-title">Contexto nutricional previo</div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="field"><label>¿Ha tenido consultas de nutrición antes?</label>
+        <select id="hcConsultasPrev">
+          <option value="">—</option>
+          <option ${d.consultas_previas==='Sí'?'selected':''}>Sí</option>
+          <option ${d.consultas_previas==='No'?'selected':''}>No</option>
+        </select>
+      </div>
+      <div class="field"><label>Tipo de plan que siguió</label><input type="text" id="hcTipoPlan" placeholder="Conteo de calorías, keto..." value="${d.tipo_plan_previo||''}"></div>
+    </div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="field"><label>¿Le funcionó?</label>
+        <select id="hcFunciono">
+          <option value="">—</option>
+          <option ${d.funciono==='Sí'?'selected':''}>Sí</option>
+          <option ${d.funciono==='Parcialmente'?'selected':''}>Parcialmente</option>
+          <option ${d.funciono==='No'?'selected':''}>No</option>
+        </select>
+      </div>
+      <div class="field"><label>¿Por qué dejó de seguirlo?</label><input type="text" id="hcPorqueDejo" value="${d.por_que_dejo||''}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>¿Qué sí le gustó de experiencias anteriores?</label><textarea id="hcGustoAntes">${d.gusto_antes||''}</textarea></div>
+      <div class="field"><label>Nivel de conocimiento nutricional</label>
+        <select id="hcNivelConocimiento" onchange="showNivelDesc(this.value)">
+          <option value="">—</option>
+          ${['Ninguno','Conocimiento parcial','Básico','Intermedio','Avanzado'].map(o=>`<option ${d.nivel_conocimiento===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+        <div id="nivelDesc" style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-top:4px;font-style:italic;line-height:1.4"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="saveDatos()">Guardar historia clínica</button>
+    <button class="btn" onclick="switchTab('inbody')">Siguiente: InBody →</button>
+  </div>
+  `;
+
+  // Restaurar estado de hábitos
+  if (d.tab_estado) restoreHabito('tab', d.tab_estado);
+  if (d.alc_estado) restoreHabito('alc', d.alc_estado);
+}
+
+function renderDietTable(rows, tipo) {
+  const grupos = ['Verdura','Fruta','Cereal','Leguminosa','AOA','Leche','Aceite/Grasa','Azúcar','Libre'];
+  const tiempos = ['Desayuno','Colación AM','Comida','Colación PM','Cena','Extra'];
+  const data = rows.length ? rows : [{tiempo:'',hora:'',lugar:'',alimento:'',cantidad:'',medida:'',coccion:'',grupo:''}];
+  return `
+    <table>
+      <thead><tr>
+        <th>Tiempo</th><th>Hora</th><th>Lugar</th><th>Alimento</th>
+        <th>Cantidad</th><th>Medida casera</th><th>Crudo/Cocido</th><th>Grupo SMAE</th>
+      </tr></thead>
+      <tbody id="dietBody_${tipo}">
+        ${data.map((r,i) => `<tr id="drow_${tipo}_${i}">
+          <td><select class="table-select" onchange="updateDietRow('${tipo}',${i},'tiempo',this.value)">
+            <option value="">—</option>${tiempos.map(t=>`<option ${r.tiempo===t?'selected':''}>${t}</option>`).join('')}
+          </select></td>
+          <td><input class="table-input" type="time" value="${r.hora||''}" onchange="updateDietRow('${tipo}',${i},'hora',this.value)"></td>
+          <td><input class="table-input" placeholder="Casa" value="${r.lugar||''}" onchange="updateDietRow('${tipo}',${i},'lugar',this.value)"></td>
+          <td><input class="table-input" placeholder="Avena" value="${r.alimento||''}" onchange="updateDietRow('${tipo}',${i},'alimento',this.value)"></td>
+          <td><input class="table-input" style="width:50px" placeholder="1" value="${r.cantidad||''}" onchange="updateDietRow('${tipo}',${i},'cantidad',this.value)"></td>
+          <td><select class="table-select" onchange="updateDietRow('${tipo}',${i},'medida',this.value)"><option value="">—</option>${['taza','cucharada','cucharadita','onza','ml','g','pieza','rebanada','porción'].map(m=>`<option ${r.medida===m?'selected':''}>${m}</option>`).join('')}</select></td>
+          <td><select class="table-select" onchange="updateDietRow('${tipo}',${i},'coccion',this.value)">
+            <option value="">—</option>
+            <option ${r.coccion==='Crudo'?'selected':''}>Crudo</option>
+            <option ${r.coccion==='Cocido'?'selected':''}>Cocido</option>
+          </select></td>
+          <td><select class="table-select" onchange="updateDietRow('${tipo}',${i},'grupo',this.value)">
+            <option value="">—</option>${grupos.map(g=>`<option ${r.grupo===g?'selected':''}>${g}</option>`).join('')}
+          </select></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <button class="add-row-btn" onclick="addDietRow('${tipo}')">+ Agregar alimento</button>
+  `;
+}
+
+let dietDataSemana = [];
+let dietDataFinde = [];
+
+function updateDietRow(tipo, i, campo, val) {
+  const arr = tipo === 'semana' ? dietDataSemana : dietDataFinde;
+  if (!arr[i]) arr[i] = {};
+  arr[i][campo] = val;
+}
+
+function addDietRow(tipo) {
+  const arr = tipo === 'semana' ? dietDataSemana : dietDataFinde;
+  arr.push({});
+  const wrap = document.getElementById('dietTableWrap');
+  wrap.innerHTML = renderDietTable(arr, tipo);
+}
+
+function switchDietTab(tipo) {
+  dietSemana = tipo;
+  document.getElementById('dtSemana').classList.toggle('active', tipo === 'semana');
+  document.getElementById('dtFinde').classList.toggle('active', tipo === 'finde');
+  const { data: hc } = sb.from('historias_clinicas').select('*').eq('paciente_id', currentPx.id).single().then(r => {
+    const d = r.data || {};
+    const rows = tipo === 'semana' ? (d.dieta_semana||[]) : (d.dieta_finde||[]);
+    document.getElementById('dietTableWrap').innerHTML = renderDietTable(rows, tipo);
+  });
+}
+
+function toggleHabito(hab, estado, btn) {
+  const group = document.getElementById('tg' + hab.charAt(0).toUpperCase() + hab.slice(1));
+  group.querySelectorAll('.toggle-opt').forEach(b => b.classList.remove('sel-neg','sel-pos'));
+  const det = document.getElementById('det' + hab.charAt(0).toUpperCase() + hab.slice(1));
+  if (estado === 'neg') { btn.classList.add('sel-neg'); det.classList.remove('open'); }
+  else { btn.classList.add('sel-pos'); det.classList.add('open'); }
+}
+
+function restoreHabito(hab, estado) {
+  const group = document.getElementById('tg' + hab.charAt(0).toUpperCase() + hab.slice(1));
+  if (!group) return;
+  const opts = group.querySelectorAll('.toggle-opt');
+  opts.forEach(b => b.classList.remove('sel-neg','sel-pos'));
+  const map = {neg:0, pos:1, ex:2};
+  if (opts[map[estado]]) {
+    opts[map[estado]].classList.add(estado==='neg'?'sel-neg':'sel-pos');
+    const det = document.getElementById('det' + hab.charAt(0).toUpperCase() + hab.slice(1));
+    if (det && estado !== 'neg') det.classList.add('open');
+  }
+}
+
+function getTabEstado(hab) {
+  const group = document.getElementById('tg' + hab.charAt(0).toUpperCase() + hab.slice(1));
+  if (!group) return 'neg';
+  const active = group.querySelector('.sel-pos, .sel-neg');
+  if (!active) return 'neg';
+  if (active.classList.contains('sel-neg')) return 'neg';
+  const opts = Array.from(group.querySelectorAll('.toggle-opt'));
+  const i = opts.indexOf(active);
+  return i === 1 ? 'pos' : 'ex';
+}
+
+function g(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+async function saveDatos() {
+  if (!currentPx) return;
+  const payload = {
+    paciente_id: currentPx.id,
+    ocupacion: g('hcOcupacion'),
+    estado_civil: g('hcEstadoCivil'),
+    historia_peso: g('hcHistPeso'),
+    talla: parseFloat(g('hcTalla')) || null,
+    ahf_diabetes: g('hcAhfDm'),
+    ahf_hta: g('hcAhfHta'),
+    ahf_cancer: g('hcAhfCa'),
+    ahf_otros: g('hcAhfOtros'),
+    enfermedades_list: getEnfList(),
+    cirugias_list: getCxList(),
+    alergias: g('hcAlergias'),
+    hospitalizaciones: g('hcHosp'),
+    sx_gi: g('hcSxGi'),
+    sx_embarazo: g('hcSxEmb'),
+    tab_estado: getTabEstado('tab'),
+    tab_tipo: g('tabTipo'),
+    tab_frec: g('tabFrec'),
+    tab_cant: g('tabCant'),
+    alc_estado: getTabEstado('alc'),
+    alc_tipo: g('alcTipo'),
+    alc_frec: g('alcFrec'),
+    alc_cant: g('alcCant'),
+    patron_sueno: g('hcSueno'),
+    af_tipo: g('hcAfTipo'), af_frec: g('hcAfFrec'), af_dur: g('hcAfDur'),
+    medicamentos: g('hcMeds'),
+    suplementos: g('hcSups'),
+    menstruacion: g('hcMens'),
+    embarazos: parseInt(g('hcEmb')) || null,
+    abortos: parseInt(g('hcAb')) || null,
+    reemplazo_hormonal: g('hcRh'),
+    apetito: g('hcApetito'),
+    comidas_dia: g('hcComidas'),
+    tiempo_comida: g('hcTiempoComida'),
+    quien_prepara: g('hcQuienPrepara'),
+    donde_come: g('hcDondecome'),
+    disgusto_alimentos: g('hcDisgusto'),
+    alimento_favorito: g('hcFavorito'),
+    dieta_semana: dietDataSemana,
+    dieta_finde: dietDataFinde,
+    consultas_previas: g('hcConsultasPrev'),
+    tipo_plan_previo: g('hcTipoPlan'),
+    funciono: g('hcFunciono'),
+    por_que_dejo: g('hcPorqueDejo'),
+    gusto_antes: g('hcGustoAntes'),
+    nivel_conocimiento: g('hcNivelConocimiento'),
+  };
+
+  // Actualizar datos básicos del paciente
+  await sb.from('pacientes').update({
+    nombre: g('hcNombre'),
+    fecha_nac: g('hcFechaNac') || null,
+    sexo: g('hcSexo'),
+    motivo_consulta: g('hcMotivo'),
+    consultorio: g('hcConsultorio'),
+  }).eq('id', currentPx.id);
+
+  const { data: existing } = await sb.from('historias_clinicas').select('id').eq('paciente_id', currentPx.id).single();
+  let error;
+  if (existing) {
+    ({ error } = await sb.from('historias_clinicas').update(payload).eq('paciente_id', currentPx.id));
+  } else {
+    ({ error } = await sb.from('historias_clinicas').insert(payload));
+  }
+
+  if (error) showToast('Error al guardar: ' + error.message);
+  else { showToast('Historia clínica guardada ✓'); await loadPacientes(); }
+}
+
+// MODAL
+function openNewPx() { document.getElementById('newPxModal').classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// TOAST
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+
+function getNivelDesc(nivel) {
+  const desc = {
+    'Ninguno': 'No tiene noción de alimentación saludable ni grupos de alimentos.',
+    'Conocimiento parcial': 'Conoce proteínas, carbohidratos y grasas pero no identifica grupos de alimentos ni porciones.',
+    'Básico': 'Conoce los grupos de alimentos pero no sabe qué es un equivalente ni cómo calcular porciones.',
+    'Intermedio': 'Sabe qué son los grupos de alimentos y tiene noción de porciones pero no conoce el SMAE formal.',
+    'Avanzado': 'Conoce el SMAE, sabe calcular equivalentes y tiene experiencia con planes de alimentación.'
+  };
+  return desc[nivel] || '';
+}
+function showNivelDesc(val) {
+  const el = document.getElementById('nivelDesc');
+  if (el) el.textContent = getNivelDesc(val);
+}
+
+let medList = [];
+function addMedRow() {
+  medList.push({});
+  const tbody = document.getElementById('medsBody');
+  if (!tbody) return;
+  const i = medList.length - 1;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="Metformina" onchange="updateListRow('med',${i},'med',this.value)"></td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="500 mg" onchange="updateListRow('med',${i},'dosis',this.value)"></td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="c/12 hrs" onchange="updateListRow('med',${i},'frec',this.value)"></td>`;
+  tbody.appendChild(tr);
+}
+function updateListRow(tipo, i, campo, val) {
+  if (tipo === 'med') { if (!medList[i]) medList[i]={}; medList[i][campo]=val; }
+}
+
+
+let enfRows = [{}];
+let cxRows = [{}];
+function addEnfRow() {
+  const i = enfRows.length;
+  enfRows.push({});
+  const tbody = document.getElementById('enfBody');
+  if (!tbody) return;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="Ej. SOP" id="enf_${i}_enf"></td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" type="number" placeholder="2023" style="width:90px" id="enf_${i}_anio"></td>`;
+  tbody.appendChild(tr);
+}
+function addCxRow() {
+  const i = cxRows.length;
+  cxRows.push({});
+  const tbody = document.getElementById('cxBody');
+  if (!tbody) return;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" placeholder="Ej. Colecistectomía" id="cx_${i}_cx"></td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--border)"><input class="table-input" type="month" id="cx_${i}_fecha"></td>`;
+  tbody.appendChild(tr);
+}
+function getEnfList() {
+  const list = [];
+  document.querySelectorAll('#enfBody tr').forEach((tr,i) => {
+    const enf = document.getElementById('enf_'+i+'_enf');
+    const anio = document.getElementById('enf_'+i+'_anio');
+    if (enf && enf.value) list.push({enf:enf.value, anio:anio?anio.value:''});
+  });
+  return list;
+}
+function getCxList() {
+  const list = [];
+  document.querySelectorAll('#cxBody tr').forEach((tr,i) => {
+    const cx = document.getElementById('cx_'+i+'_cx');
+    const fecha = document.getElementById('cx_'+i+'_fecha');
+    if (cx && cx.value) list.push({cx:cx.value, fecha:fecha?fecha.value:''});
+  });
+  return list;
+}
+
+
+const PARAMETROS = [
+  // Perfil metabólico
+  {nombre:'Glucosa', unidad:'mg/dL', ref_min:70, ref_max:100, grupo:'Perfil metabólico'},
+  {nombre:'Insulina basal', unidad:'µUI/mL', ref_min:2, ref_max:10, grupo:'Perfil metabólico'},
+  {nombre:'HbA1c', unidad:'%', ref_min:0, ref_max:5.6, grupo:'Perfil metabólico'},
+  {nombre:'HOMA-IR', unidad:'', ref_min:0, ref_max:2.5, grupo:'Perfil metabólico'},
+  // Perfil lipídico
+  {nombre:'Colesterol total', unidad:'mg/dL', ref_min:0, ref_max:200, grupo:'Perfil lipídico'},
+  {nombre:'HDL', unidad:'mg/dL', ref_min:40, ref_max:999, grupo:'Perfil lipídico'},
+  {nombre:'LDL', unidad:'mg/dL', ref_min:0, ref_max:100, grupo:'Perfil lipídico'},
+  {nombre:'VLDL', unidad:'mg/dL', ref_min:0, ref_max:30, grupo:'Perfil lipídico'},
+  {nombre:'Triglicéridos', unidad:'mg/dL', ref_min:0, ref_max:150, grupo:'Perfil lipídico'},
+  // Función renal
+  {nombre:'Creatinina', unidad:'mg/dL', ref_min:0.5, ref_max:1.1, grupo:'Función renal'},
+  {nombre:'BUN', unidad:'mg/dL', ref_min:7, ref_max:20, grupo:'Función renal'},
+  {nombre:'Urea', unidad:'mg/dL', ref_min:15, ref_max:45, grupo:'Función renal'},
+  {nombre:'Ácido úrico', unidad:'mg/dL', ref_min:2.4, ref_max:5.7, grupo:'Función renal'},
+  {nombre:'Filtrado glomerular', unidad:'mL/min', ref_min:60, ref_max:999, grupo:'Función renal'},
+  // Función hepática
+  {nombre:'TGO (AST)', unidad:'U/L', ref_min:0, ref_max:40, grupo:'Función hepática'},
+  {nombre:'TGP (ALT)', unidad:'U/L', ref_min:0, ref_max:40, grupo:'Función hepática'},
+  {nombre:'Fosfatasa alcalina', unidad:'U/L', ref_min:44, ref_max:147, grupo:'Función hepática'},
+  {nombre:'GGT', unidad:'U/L', ref_min:0, ref_max:45, grupo:'Función hepática'},
+  {nombre:'Bilirrubina total', unidad:'mg/dL', ref_min:0, ref_max:1.2, grupo:'Función hepática'},
+  {nombre:'Bilirrubina directa', unidad:'mg/dL', ref_min:0, ref_max:0.3, grupo:'Función hepática'},
+  {nombre:'Bilirrubina indirecta', unidad:'mg/dL', ref_min:0, ref_max:0.9, grupo:'Función hepática'},
+  {nombre:'Proteínas totales', unidad:'g/dL', ref_min:6.3, ref_max:8.2, grupo:'Función hepática'},
+  {nombre:'Albúmina', unidad:'g/dL', ref_min:3.5, ref_max:5.0, grupo:'Función hepática'},
+  {nombre:'Globulinas', unidad:'g/dL', ref_min:2.0, ref_max:3.5, grupo:'Función hepática'},
+  // Tiroides
+  {nombre:'TSH', unidad:'µUI/mL', ref_min:0.4, ref_max:4.0, grupo:'Tiroides'},
+  {nombre:'T3', unidad:'ng/dL', ref_min:80, ref_max:200, grupo:'Tiroides'},
+  {nombre:'T4', unidad:'µg/dL', ref_min:4.5, ref_max:12.5, grupo:'Tiroides'},
+  {nombre:'T3 libre', unidad:'pg/mL', ref_min:2.3, ref_max:4.2, grupo:'Tiroides'},
+  {nombre:'T4 libre', unidad:'ng/dL', ref_min:0.8, ref_max:1.8, grupo:'Tiroides'},
+  // Vitaminas y minerales
+  {nombre:'Vitamina D', unidad:'ng/mL', ref_min:30, ref_max:100, grupo:'Vitaminas y minerales'},
+  {nombre:'Vitamina B12', unidad:'pg/mL', ref_min:200, ref_max:900, grupo:'Vitaminas y minerales'},
+  {nombre:'Ácido fólico', unidad:'ng/mL', ref_min:3.1, ref_max:17.5, grupo:'Vitaminas y minerales'},
+  {nombre:'Hierro sérico', unidad:'µg/dL', ref_min:60, ref_max:170, grupo:'Vitaminas y minerales'},
+  {nombre:'Ferritina', unidad:'ng/mL', ref_min:12, ref_max:150, grupo:'Vitaminas y minerales'},
+  {nombre:'Transferrina', unidad:'mg/dL', ref_min:200, ref_max:360, grupo:'Vitaminas y minerales'},
+  {nombre:'Saturación de transferrina', unidad:'%', ref_min:20, ref_max:50, grupo:'Vitaminas y minerales'},
+  {nombre:'Zinc', unidad:'µg/dL', ref_min:70, ref_max:120, grupo:'Vitaminas y minerales'},
+  {nombre:'Magnesio', unidad:'mg/dL', ref_min:1.7, ref_max:2.2, grupo:'Vitaminas y minerales'},
+  {nombre:'Calcio', unidad:'mg/dL', ref_min:8.5, ref_max:10.5, grupo:'Vitaminas y minerales'},
+  {nombre:'Fósforo', unidad:'mg/dL', ref_min:2.5, ref_max:4.5, grupo:'Vitaminas y minerales'},
+  {nombre:'Sodio', unidad:'mEq/L', ref_min:136, ref_max:145, grupo:'Vitaminas y minerales'},
+  {nombre:'Potasio', unidad:'mEq/L', ref_min:3.5, ref_max:5.0, grupo:'Vitaminas y minerales'},
+  {nombre:'Cloro', unidad:'mEq/L', ref_min:98, ref_max:107, grupo:'Vitaminas y minerales'},
+  // Biometría
+  {nombre:'Hemoglobina', unidad:'g/dL', ref_min:12.0, ref_max:16.0, grupo:'Biometría'},
+  {nombre:'Hematocrito', unidad:'%', ref_min:36, ref_max:46, grupo:'Biometría'},
+  {nombre:'Leucocitos', unidad:'x10³/µL', ref_min:4.5, ref_max:11.0, grupo:'Biometría'},
+  {nombre:'Plaquetas', unidad:'x10³/µL', ref_min:150, ref_max:400, grupo:'Biometría'},
+  // Orina
+  {nombre:'Glucosa en orina', unidad:'mg/dL', ref_min:0, ref_max:0, grupo:'Orina'},
+  {nombre:'Proteínas en orina', unidad:'mg/dL', ref_min:0, ref_max:14, grupo:'Orina'},
+  {nombre:'pH urinario', unidad:'', ref_min:4.6, ref_max:8.0, grupo:'Orina'},
+  {nombre:'Densidad urinaria', unidad:'', ref_min:1.005, ref_max:1.030, grupo:'Orina'},
+  {nombre:'Microalbuminuria', unidad:'mg/g', ref_min:0, ref_max:30, grupo:'Orina'},
+  {nombre:'Creatinina en orina', unidad:'mg/dL', ref_min:20, ref_max:370, grupo:'Orina'},
+  {nombre:'Índice albúmina/creatinina', unidad:'mg/g', ref_min:0, ref_max:30, grupo:'Orina'},
+];
+
+async function renderLabs(el) {
+  const { data: labsData } = await sb.from('laboratorios')
+    .select('*').eq('paciente_id', currentPx.id).order('fecha', {ascending:false});
+  const registros = labsData || [];
+
+  let histHTML = '';
+  if (registros.length > 0) {
+    let rows = '';
+    registros.forEach(function(r) {
+      let chips = '';
+      PARAMETROS.forEach(function(p) {
+        const val = r.resultados && r.resultados[p.nombre];
+        if (!val) return;
+        const num = parseFloat(val);
+        let color = 'var(--text2)', bg = 'var(--surface2)';
+        if (p.nombre === 'HDL') {
+          if (num < p.ref_min) { color='var(--danger)'; bg='var(--danger-light)'; }
+          else { color='var(--success)'; bg='var(--success-light)'; }
+        } else {
+          if (num < p.ref_min || num > p.ref_max) { color='var(--danger)'; bg='var(--danger-light)'; }
+          else { color='var(--success)'; bg='var(--success-light)'; }
+        }
+        chips += '<div style="background:'+bg+';border-radius:var(--radius);padding:6px 10px;font-family:sans-serif;font-size:12px">'
+          + '<div style="color:var(--text2);font-size:10px;margin-bottom:2px">'+p.nombre+'</div>'
+          + '<div style="color:'+color+';font-weight:500">'+val+' '+p.unidad+'</div></div>';
+      });
+      const fechaStr = new Date(r.fecha+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+      rows += '<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">'
+        + '<div style="font-size:13px;font-weight:500;font-family:sans-serif;margin-bottom:10px;color:var(--text2)">📅 '+fechaStr+'</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:8px">'+chips+'</div></div>';
+    });
+    histHTML = '<div class="card"><div class="card-title">Historial de laboratorios</div>'+rows+'</div>';
+  }
+
+  let labRows = '';
+  let lastGrupo = '';
+  PARAMETROS.forEach(function(p, i) {
+    if (p.grupo && p.grupo !== lastGrupo) {
+      labRows += '<tr><td colspan="5" style="padding:8px 10px;background:var(--surface2);font-size:10px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)">'+p.grupo+'</td></tr>';
+      lastGrupo = p.grupo;
+    }
+    const refStr = (p.nombre === 'HDL' || p.nombre === 'Filtrado glomerular') ? '> '+p.ref_min : (p.ref_min === 0 && p.ref_max === 0) ? 'Negativo' : p.ref_min+' – '+p.ref_max;
+    labRows += '<tr>'
+      + '<td style="padding:6px 10px;border-bottom:1px solid var(--border);font-weight:500">'+p.nombre+'</td>'
+      + '<td style="padding:6px 10px;border-bottom:1px solid var(--border)"><input class="table-input" id="lab_'+i+'" type="number" step="0.01" placeholder="—" style="width:110px" onchange="evalLabRow('+i+')"></td>'
+      + '<td style="padding:6px 10px;border-bottom:1px solid var(--border);color:var(--text2)">'+p.unidad+'</td>'
+      + '<td style="padding:6px 10px;border-bottom:1px solid var(--border);color:var(--text2);font-size:11px">'+refStr+'</td>'
+      + '<td style="padding:6px 10px;border-bottom:1px solid var(--border)" id="labStatus_'+i+'">—</td>'
+      + '</tr>';
+  });
+
+  el.innerHTML = '<div class="card">'
+    + '<div class="card-title">Subir laboratorios</div>'
+    + '<div style="border:2px dashed var(--border);border-radius:var(--radius-lg);padding:32px;text-align:center;cursor:pointer;background:var(--surface2)" onclick="triggerLabFile()" id="labDropZone">'
+    + '<div style="font-size:28px;margin-bottom:8px">🧪</div>'
+    + '<div style="font-size:14px;color:var(--text);font-family:sans-serif;margin-bottom:4px">Arrastra o da clic para subir el PDF o imagen del laboratorio</div>'
+    + '<div style="font-size:12px;color:var(--text3);font-family:sans-serif">PDF, JPG o PNG — La IA extraerá los valores automáticamente</div>'
+    + '<input type="file" id="labFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="processLabFile(this)">'
+    + '</div>'
+    + '<div id="labAiStatus" style="display:none;margin-top:12px;padding:12px;background:var(--accent-light);border-radius:var(--radius);font-size:13px;font-family:sans-serif;color:var(--accent-text)">✦ Analizando laboratorio con IA...</div>'
+    + '</div>'
+    + '<div class="card" id="labFormCard">'
+    + '<div class="card-title">Registrar resultados</div>'
+    + '<div style="margin-bottom:16px"><div class="field" style="max-width:200px"><label>Fecha del laboratorio</label>'
+    + '<input type="date" id="labFecha" value="'+new Date().toISOString().split('T')[0]+'"></div></div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;font-family:sans-serif">'
+    + '<thead><tr>'
+    + '<th style="text-align:left;padding:8px 10px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px">Parámetro</th>'
+    + '<th style="text-align:left;padding:8px 10px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;width:140px">Resultado</th>'
+    + '<th style="text-align:left;padding:8px 10px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;width:80px">Unidad</th>'
+    + '<th style="text-align:left;padding:8px 10px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;width:120px">Referencia</th>'
+    + '<th style="text-align:left;padding:8px 10px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;width:80px">Estado</th>'
+    + '</tr></thead>'
+    + '<tbody id="labTableBody">'+labRows+'</tbody>'
+    + '</table>'
+    + '<div class="btn-row"><button class="btn btn-primary" onclick="saveLabResults()">Guardar resultados</button></div>'
+    + '</div>'
+    + histHTML;
+}
+
+
+function evalLabRow(i) {
+  const p = PARAMETROS[i];
+  const input = document.getElementById('lab_'+i);
+  const status = document.getElementById('labStatus_'+i);
+  if (!input || !status || !input.value) { status.innerHTML='—'; return; }
+  const val = parseFloat(input.value);
+  let ok;
+  if (p.nombre === 'HDL') ok = val >= p.ref_min;
+  else ok = val >= p.ref_min && val <= p.ref_max;
+  status.innerHTML = ok
+    ? '<span class="tag tag-ok">Normal</span>'
+    : '<span class="tag tag-danger">Fuera de rango</span>';
+}
+
+async function processLabFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('labAiStatus');
+  status.style.display = 'block';
+  status.textContent = '✦ Leyendo el laboratorio con IA...';
+
+  try {
+    const base64 = await fileToBase64(file);
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+
+    const content = isImage
+      ? [{type:'image', source:{type:'base64', media_type:file.type, data:base64}},
+         {type:'text', text:'Este es un laboratorio clínico. Extrae TODOS los parámetros que aparezcan en el documento. Busca especialmente: Glucosa, Insulina basal, HbA1c, HOMA-IR, Colesterol total, HDL, LDL, VLDL, Triglicéridos, Creatinina, BUN, Urea, Ácido úrico, Filtrado glomerular, TGO, TGP, Fosfatasa alcalina, GGT, Bilirrubina total, Bilirrubina directa, Bilirrubina indirecta, Proteínas totales, Albúmina, Globulinas, TSH, T3, T4, T3 libre, T4 libre, Vitamina D, Vitamina B12, Ácido fólico, Hierro sérico, Ferritina, Transferrina, Saturación de transferrina, Zinc, Magnesio, Calcio, Fósforo, Sodio, Potasio, Cloro, Hemoglobina, Hematocrito, Leucocitos, Plaquetas, Glucosa en orina, Proteínas en orina, pH urinario, Densidad urinaria, Microalbuminuria, Creatinina en orina, Índice albúmina/creatinina. Responde SOLO con un JSON con los nombres exactos como keys y los valores numéricos como strings. Si un parámetro no aparece no lo incluyas. Sin texto adicional ni markdown.'}]
+      : [{type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}},
+         {type:'text', text:'Este es un laboratorio clínico. Extrae TODOS los parámetros que aparezcan en el documento. Busca especialmente: Glucosa, Insulina basal, HbA1c, HOMA-IR, Colesterol total, HDL, LDL, VLDL, Triglicéridos, Creatinina, BUN, Urea, Ácido úrico, Filtrado glomerular, TGO, TGP, Fosfatasa alcalina, GGT, Bilirrubina total, Bilirrubina directa, Bilirrubina indirecta, Proteínas totales, Albúmina, Globulinas, TSH, T3, T4, T3 libre, T4 libre, Vitamina D, Vitamina B12, Ácido fólico, Hierro sérico, Ferritina, Transferrina, Saturación de transferrina, Zinc, Magnesio, Calcio, Fósforo, Sodio, Potasio, Cloro, Hemoglobina, Hematocrito, Leucocitos, Plaquetas, Glucosa en orina, Proteínas en orina, pH urinario, Densidad urinaria, Microalbuminuria, Creatinina en orina, Índice albúmina/creatinina. Responde SOLO con un JSON con los nombres exactos como keys y los valores numéricos como strings. Si un parámetro no aparece no lo incluyas. Sin texto adicional ni markdown.'}];
+
+    const res = await fetch('/api/analyze', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ base64, mediaType: file.type, tipo: 'labs' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error del servidor');
+    const vals = data.result;
+
+    PARAMETROS.forEach((p,i) => {
+      const input = document.getElementById('lab_'+i);
+      if (input && vals[p.nombre]) {
+        input.value = vals[p.nombre];
+        evalLabRow(i);
+      }
+    });
+
+    status.textContent = '✦ Laboratorio extraído — revisa y corrige los valores si es necesario';
+    status.style.background = 'var(--success-light)';
+    status.style.color = 'var(--success)';
+  } catch(e) {
+    status.textContent = 'Error al leer el archivo. Captura los valores manualmente.';
+    status.style.background = 'var(--danger-light)';
+    status.style.color = 'var(--danger)';
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((res,rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function saveLabResults() {
+  const fecha = document.getElementById('labFecha').value;
+  if (!fecha) { showToast('Selecciona la fecha del laboratorio'); return; }
+  const resultados = {};
+  PARAMETROS.forEach((p,i) => {
+    const input = document.getElementById('lab_'+i);
+    if (input && input.value) resultados[p.nombre] = input.value;
+  });
+  if (Object.keys(resultados).length === 0) { showToast('Captura al menos un resultado'); return; }
+  const { error } = await sb.from('laboratorios').insert({
+    paciente_id: currentPx.id,
+    fecha,
+    resultados
+  });
+  if (error) showToast('Error al guardar: ' + error.message);
+  else { showToast('Laboratorios guardados ✓'); await renderLabs(document.getElementById('tabContent')); }
+}
+
+function triggerLabFile() { const el = document.getElementById("labFileInput"); if(el) el.click(); }
+
+
+async function renderInBody(el) {
+  const { data: inbodyData } = await sb.from('inbody_registros')
+    .select('*').eq('paciente_id', currentPx.id).order('fecha', {ascending:false});
+  const registros = inbodyData || [];
+  const d = registros[0] || {};
+
+  // Calcular GET con Mifflin-St Jeor
+  const { data: hc } = await sb.from('historias_clinicas').select('*').eq('paciente_id', currentPx.id).single();
+  const talla = hc ? parseFloat(hc.talla) : 0;
+  const fechaNac = currentPx.fecha_nac;
+  const edad = fechaNac ? Math.floor((new Date() - new Date(fechaNac)) / 31557600000) : 0;
+  const sexo = currentPx.sexo || 'Femenino';
+
+  function calcMifflin(peso, talla_cm, edad, sexo) {
+    if (!peso || !talla_cm || !edad) return 0;
+    if (sexo === 'Masculino') return Math.round(10*peso + 6.25*talla_cm - 5*edad + 5);
+    return Math.round(10*peso + 6.25*talla_cm - 5*edad - 161);
+  }
+
+  const factores = [
+    {label:'Sedentario', val:1.2},
+    {label:'Ligero (1-3 días/sem)', val:1.375},
+    {label:'Moderado (3-5 días/sem)', val:1.55},
+    {label:'Intenso (6-7 días/sem)', val:1.725},
+    {label:'Muy intenso', val:1.9}
+  ];
+  const factoresEstres = [
+    {label:'Sin estrés', val:1.0},
+    {label:'Estrés leve', val:1.1},
+    {label:'Estrés moderado', val:1.25},
+    {label:'Estrés severo', val:1.5}
+  ];
+
+  // Historial para gráfica
+  let histHTML = '';
+  if (registros.length > 1) {
+    const labels = registros.slice(0,6).reverse().map(r => new Date(r.fecha+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'}));
+    const pesoVals = registros.slice(0,6).reverse().map(r => r.peso||0);
+    const grasaVals = registros.slice(0,6).reverse().map(r => r.porc_grasa||0);
+    const muscVals = registros.slice(0,6).reverse().map(r => r.masa_muscular||0);
+    histHTML = '<div class="card"><div class="card-title">Evolución histórica</div>'
+      + '<canvas id="inbodyChart" style="max-height:200px"></canvas>'
+      + '<script>setTimeout(function(){'
+      + 'const ctx=document.getElementById("inbodyChart");'
+      + 'if(!ctx||!window.Chart)return;'
+      + 'new Chart(ctx,{type:"line",data:{labels:'+JSON.stringify(labels)+','
+      + 'datasets:['
+      + '{label:"Peso (kg)",data:'+JSON.stringify(pesoVals)+',borderColor:"#2D6A4F",tension:0.3,fill:false},'
+      + '{label:"% Grasa",data:'+JSON.stringify(grasaVals)+',borderColor:"#E07B4B",tension:0.3,fill:false},'
+      + '{label:"Masa muscular (kg)",data:'+JSON.stringify(muscVals)+',borderColor:"#4B6FE0",tension:0.3,fill:false}'
+      + ']},options:{responsive:true,plugins:{legend:{position:"bottom"}}}});'
+      + '},300);<\/script></div>';
+  }
+
+  el.innerHTML = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>'
+
+  + '<div class="card">'  + '<div class="card-title">Subir reporte InBody</div>'  + '<div style="border:2px dashed var(--border);border-radius:var(--radius-lg);padding:24px;text-align:center;cursor:pointer;background:var(--surface2)" onclick="triggerInBodyFile()">'  + '<div style="font-size:24px;margin-bottom:6px">📊</div>'  + '<div style="font-size:13px;color:var(--text);font-family:sans-serif;margin-bottom:4px">Da clic para subir el PDF o imagen del reporte InBody</div>'  + '<div style="font-size:11px;color:var(--text3);font-family:sans-serif">La IA extraerá los valores automáticamente</div>'  + '<input type="file" id="inbodyFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="processInBodyFile(this)">'  + '</div>'  + '<div id="inbodyAiStatus" style="display:none;margin-top:10px;padding:10px;background:var(--accent-light);border-radius:var(--radius);font-size:12px;font-family:sans-serif;color:var(--accent-text)">✦ Analizando reporte InBody con IA...</div>'  + '</div>'  + '<div class="card">'  + '<div class="card-title">Composición corporal</div>'  + '<div class="grid4" style="margin-bottom:14px">'  + '<div class="field"><label>Estatura (cm)</label><input type="number" step="0.1" id="ibEstatura" placeholder="162" value="'+(d.estatura||'')+'" onchange="recalcIMC()"></div>'  + '<div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="ibPeso" placeholder="72.4" value="'+(d.peso||'')+'" onchange="recalcIMC();recalcGET()"></div>'
+  + '<div class="field"><label>IMC (kg/m²)</label><input type="number" step="0.1" id="ibIMC" placeholder="Auto" value="'+(d.imc||'')+'" readonly style="background:var(--surface2);color:var(--text2)"></div>'
+  + '<div class="field"><label>% Grasa corporal</label><input type="number" step="0.1" id="ibGrasa" placeholder="31.2" value="'+(d.porc_grasa||'')+'" onchange="evalGrasa()"></div>'
+  + '<div class="field"><label>Grasa visceral (nivel)</label><input type="number" step="1" id="ibGrasaVisc" placeholder="9" value="'+(d.grasa_visceral||'')+'" onchange="evalGrasaVisc()"></div>'
+  + '</div>'
+  + '<div class="grid3" style="margin-bottom:14px">'
+  + '<div class="field"><label>Masa muscular esquelética (kg)</label><input type="number" step="0.1" id="ibMasaMusc" placeholder="23.1" value="'+(d.masa_muscular||'')+'"></div>'
+  + '<div class="field"><label>Masa grasa (kg)</label><input type="number" step="0.1" id="ibMasaGrasa" placeholder="22.6" value="'+(d.masa_grasa||'')+'"></div>'
+  + '<div class="field"><label>Agua corporal total (L)</label><input type="number" step="0.1" id="ibAgua" placeholder="34.8" value="'+(d.agua_total||'')+'"></div>'
+  + '</div>'
+  + '<div id="ibGrasaStatus" style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px"></div>'
+
+  + '<div style="margin-bottom:6px;font-size:11px;font-weight:500;color:var(--text2);font-family:sans-serif">Composición por segmentos</div>'
+  + '<table style="width:100%;border-collapse:collapse;font-size:12px;font-family:sans-serif;margin-bottom:14px">'
+  + '<thead><tr>'
+  + '<th style="text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px">Segmento</th>'
+  + '<th style="padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;text-align:center">Masa grasa (kg)</th>'
+  + '<th style="padding:6px 8px;background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;text-align:center">Masa magra (kg)</th>'
+  + '</tr></thead><tbody>'
+  + ['Brazo derecho','Brazo izquierdo','Tronco','Pierna derecha','Pierna izquierda'].map(function(seg) {
+      const key = seg.toLowerCase().replace(/ /g,'_');
+      const gVal = d['seg_'+key+'_grasa'] || '';
+      const mVal = d['seg_'+key+'_magra'] || '';
+      return '<tr>'
+        + '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-weight:500">'+seg+'</td>'
+        + '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:center"><input class="table-input" type="number" step="0.1" style="width:70px;text-align:center" id="seg_'+key+'_grasa" value="'+gVal+'" placeholder="—"></td>'
+        + '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:center"><input class="table-input" type="number" step="0.1" style="width:70px;text-align:center" id="seg_'+key+'_magra" value="'+mVal+'" placeholder="—"></td>'
+        + '</tr>';
+    }).join('')
+  + '</tbody></table>'
+
+  + '<div class="field"><label>Notas clínicas</label><textarea id="ibNotas" style="min-height:80px">'+(d.notas||'')+'</textarea></div>'
+  + '</div>'
+
+  + '<div class="card">'
+  + '<div class="card-title">Requerimientos nutricionales</div>'
+
+  + '<div class="grid2" style="margin-bottom:16px">'
+  + '<div class="field"><label>Fecha de medición</label><input type="date" id="ibFecha" value="'+(d.fecha||new Date().toISOString().split('T')[0])+'"></div>'
+  + '<div class="field"><label>BMR InBody (kcal)</label><input type="number" id="ibBMR" placeholder="1,410" value="'+(d.bmr_inbody||'')+'" onchange="recalcGET()"></div>'
+  + '</div>'
+
+  + '<div style="margin-bottom:12px">'
+  + '<div style="font-size:11px;font-weight:500;color:var(--text2);font-family:sans-serif;margin-bottom:6px">Factor de actividad</div>'
+  + '<div style="display:flex;gap:6px;flex-wrap:wrap" id="factorActGroup">'
+  + factores.map(function(f,i) {
+      const sel = (d.factor_actividad == f.val) || (!d.factor_actividad && i===0);
+      return '<button class="toggle-opt '+(sel?'sel-pos':'')+' " onclick="selectFactor(\'act\','+f.val+',this)">'+f.label+' (×'+f.val+')</button>';
+    }).join('')
+  + '</div></div>'
+
+  + '<div style="margin-bottom:16px">'
+  + '<div style="font-size:11px;font-weight:500;color:var(--text2);font-family:sans-serif;margin-bottom:6px">Factor de estrés <span style="color:var(--text3)">(opcional)</span></div>'
+  + '<div style="display:flex;gap:6px;flex-wrap:wrap" id="factorEstresGroup">'
+  + factoresEstres.map(function(f,i) {
+      const sel = (d.factor_estres == f.val) || (!d.factor_estres && i===0);
+      return '<button class="toggle-opt '+(sel?'sel-pos':'')+' " onclick="selectFactor(\'estres\','+f.val+',this)">'+f.label+' (×'+f.val+')</button>';
+    }).join('')
+  + '</div></div>'
+
+  + '<div class="grid2" style="margin-bottom:16px">'
+  + '<div style="background:var(--accent-light);border-radius:var(--radius-lg);padding:16px">'
+  + '<div style="font-size:11px;color:var(--accent-text);font-family:sans-serif;margin-bottom:6px">GET Mifflin-St Jeor</div>'
+  + '<div id="getDisplay" style="font-size:28px;font-weight:500;color:var(--accent-text)">—</div>'
+  + '<div style="font-size:11px;color:var(--accent-text);font-family:sans-serif;margin-top:4px" id="getDetail">Ingresa peso para calcular</div>'
+  + '</div>'
+  + '<div style="background:var(--surface1);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px">'
+  + '<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:6px">BMR InBody (referencia)</div>'
+  + '<div id="bmrDisplay" style="font-size:28px;font-weight:500;color:var(--text)">'+(d.bmr_inbody||'—')+'</div>'
+  + '<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-top:4px">kcal/día según equipo</div>'
+  + '</div>'
+  + '</div>'
+
+  + '<div style="margin-bottom:16px">'
+  + '<div style="font-size:11px;font-weight:500;color:var(--text2);font-family:sans-serif;margin-bottom:8px">Distribución de macronutrimentos</div>'
+  + '<div class="grid3">'
+  + '<div class="field"><label>Proteína (g/kg peso actual)</label>'
+  + '<select id="protGkg" onchange="recalcMacros()">'
+  + [0.8,1.0,1.2,1.4,1.6,1.8,2.0].map(function(v){ return '<option value="'+v+'" '+(d.prot_gkg==v?'selected':'')+'>'+v+' g/kg</option>'; }).join('')
+  + '</select>'
+  + '<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-top:4px" id="protGTotal">—</div>'
+  + '</div>'
+  + '<div class="field"><label>Lípidos (% del VCT)</label>'
+  + '<select id="lipPct" onchange="recalcMacros()">'
+  + [20,25,28,30,35].map(function(v){ return '<option value="'+v+'" '+(d.lip_pct==v?'selected':'')+'>'+v+'%</option>'; }).join('')
+  + '</select>'
+  + '<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-top:4px" id="lipGTotal">—</div>'
+  + '</div>'
+  + '<div class="field"><label>Hidratos de carbono (% del VCT)</label>'
+  + '<div style="font-size:20px;font-weight:500;color:var(--text);margin-top:8px" id="hcoDisplay">—</div>'
+  + '<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-top:4px" id="hcoGTotal">—</div>'
+  + '</div>'
+  + '</div></div>'
+
+  + '<div class="btn-row">'
+  + '<button class="btn btn-primary" onclick="saveInBody()">Guardar medición</button>'
+  + '</div></div>'
+
+  + histHTML;
+
+  // Variables de estado
+  window._ibFactorAct = d.factor_actividad || 1.375;
+  window._ibFactorEstres = d.factor_estres || 1.0;
+  window._ibTalla = talla * 100; // convertir a cm
+  window._ibEdad = edad;
+  window._ibSexo = sexo;
+
+  recalcGET();
+}
+
+function evalGrasa() {
+  const val = parseFloat(document.getElementById('ibGrasa')?.value);
+  const sexo = window._ibSexo || 'Femenino';
+  const el = document.getElementById('ibGrasaStatus');
+  if (!el || isNaN(val)) { if(el) el.textContent=''; return; }
+  let msg = '';
+  if (sexo === 'Femenino') {
+    if (val < 18) msg = '⚠️ Bajo en grasa';
+    else if (val <= 28) msg = '✓ Normal (18–28%)';
+    else if (val <= 35) msg = '⚠️ Elevado (28–35%)';
+    else msg = '🔴 Muy elevado (>35%)';
+  } else {
+    if (val < 10) msg = '⚠️ Bajo en grasa';
+    else if (val <= 20) msg = '✓ Normal (10–20%)';
+    else if (val <= 25) msg = '⚠️ Elevado (20–25%)';
+    else msg = '🔴 Muy elevado (>25%)';
+  }
+  el.textContent = '% Grasa: ' + msg;
+}
+
+function evalGrasaVisc() {
+  const val = parseFloat(document.getElementById('ibGrasaVisc')?.value);
+  const el = document.getElementById('ibGrasaStatus');
+  if (!el || isNaN(val)) return;
+  let msg = val < 10 ? '✓ Normal (<10)' : val <= 14 ? '⚠️ Elevado (10–14)' : '🔴 Muy elevado (>14)';
+  el.textContent = (el.textContent || '') + ' | Grasa visceral: ' + msg;
+}
+
+function selectFactor(tipo, val, btn) {
+  const groupId = tipo === 'act' ? 'factorActGroup' : 'factorEstresGroup';
+  const group = document.getElementById(groupId);
+  if (group) group.querySelectorAll('.toggle-opt').forEach(function(b){ b.classList.remove('sel-pos'); });
+  btn.classList.add('sel-pos');
+  if (tipo === 'act') window._ibFactorAct = val;
+  else window._ibFactorEstres = val;
+  recalcGET();
+}
+
+function recalcGET() {
+  const peso = parseFloat(document.getElementById('ibPeso')?.value);
+  const talla = window._ibTalla || 0;
+  const edad = window._ibEdad || 0;
+  const sexo = window._ibSexo || 'Femenino';
+  const factAct = window._ibFactorAct || 1.375;
+  const factEst = window._ibFactorEstres || 1.0;
+
+  const getEl = document.getElementById('getDisplay');
+  const detEl = document.getElementById('getDetail');
+  const bmrEl = document.getElementById('ibBMR');
+  const bmrDisp = document.getElementById('bmrDisplay');
+
+  if (bmrEl && bmrDisp) bmrDisp.textContent = bmrEl.value || '—';
+
+  if (!peso || !talla || !edad) {
+    if (getEl) getEl.textContent = '—';
+    if (detEl) detEl.textContent = 'Completa talla y fecha de nac. en datos del paciente';
+    recalcMacros();
+    return;
+  }
+
+  let tmb;
+  if (sexo === 'Masculino') tmb = Math.round(10*peso + 6.25*talla - 5*edad + 5);
+  else tmb = Math.round(10*peso + 6.25*talla - 5*edad - 161);
+
+  const get = Math.round(tmb * factAct * factEst);
+  if (getEl) getEl.textContent = get.toLocaleString() + ' kcal';
+  if (detEl) detEl.textContent = 'TMB: ' + tmb + ' kcal × ' + factAct + ' × ' + factEst;
+  window._ibGET = get;
+  window._ibPeso = peso;
+  recalcMacros();
+}
+
+function recalcMacros() {
+  const get = window._ibGET || 0;
+  const peso = window._ibPeso || 0;
+  const protGkg = parseFloat(document.getElementById('protGkg')?.value) || 1.4;
+  const lipPct = parseFloat(document.getElementById('lipPct')?.value) || 28;
+
+  const protG = Math.round(peso * protGkg);
+  const lipG = Math.round(get * lipPct / 100 / 9);
+  const protKcal = protG * 4;
+  const lipKcal = lipG * 9;
+  const hcoKcal = Math.max(0, get - protKcal - lipKcal);
+  const hcoG = Math.round(hcoKcal / 4);
+  const hcoPct = get > 0 ? Math.round(hcoKcal / get * 100) : 0;
+
+  const protEl = document.getElementById('protGTotal');
+  const lipEl = document.getElementById('lipGTotal');
+  const hcoEl = document.getElementById('hcoDisplay');
+  const hcoGEl = document.getElementById('hcoGTotal');
+
+  if (protEl) protEl.textContent = protG + 'g/día (' + (get>0?Math.round(protKcal/get*100):0) + '% VCT)';
+  if (lipEl) lipEl.textContent = lipG + 'g/día';
+  if (hcoEl) hcoEl.textContent = hcoPct + '%';
+  if (hcoGEl) hcoGEl.textContent = hcoG + 'g/día';
+}
+
+function g(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+async function saveInBody() {
+  const fecha = g('ibFecha');
+  if (!fecha) { showToast('Selecciona la fecha'); return; }
+  const segs = {};
+  ['brazo_derecho','brazo_izquierdo','tronco','pierna_derecha','pierna_izquierda'].forEach(function(seg) {
+    segs['seg_'+seg+'_grasa'] = parseFloat(g('seg_'+seg+'_grasa')) || null;
+    segs['seg_'+seg+'_magra'] = parseFloat(g('seg_'+seg+'_magra')) || null;
+  });
+  const payload = Object.assign({
+    paciente_id: currentPx.id,
+    fecha,
+    estatura: parseFloat(g('ibEstatura')) || null,
+    peso: parseFloat(g('ibPeso')) || null,
+    imc: parseFloat(g('ibIMC')) || null,
+    porc_grasa: parseFloat(g('ibGrasa')) || null,
+    grasa_visceral: parseFloat(g('ibGrasaVisc')) || null,
+    masa_muscular: parseFloat(g('ibMasaMusc')) || null,
+    masa_grasa: parseFloat(g('ibMasaGrasa')) || null,
+    agua_total: parseFloat(g('ibAgua')) || null,
+    bmr_inbody: parseFloat(g('ibBMR')) || null,
+    factor_actividad: window._ibFactorAct || 1.375,
+    factor_estres: window._ibFactorEstres || 1.0,
+    prot_gkg: parseFloat(g('protGkg')) || 1.4,
+    lip_pct: parseFloat(g('lipPct')) || 28,
+    get_calculado: window._ibGET || null,
+    notas: g('ibNotas'),
+  }, segs);
+
+  const { error } = await sb.from('inbody_registros').insert(payload);
+  if (error) showToast('Error: ' + error.message);
+  else { showToast('Medición guardada ✓'); await renderInBody(document.getElementById('tabContent')); }
+}
+
+
+function triggerInBodyFile() { const el = document.getElementById('inbodyFileInput'); if(el) el.click(); }
+
+function recalcIMC() {
+  const peso = parseFloat(document.getElementById('ibPeso')?.value);
+  const estaturaEl = document.getElementById('ibEstatura');
+  const imcEl = document.getElementById('ibIMC');
+  if (!peso || !estaturaEl || !estaturaEl.value) { if(imcEl) imcEl.value=''; return; }
+  const estCm = parseFloat(estaturaEl.value);
+  if (!estCm) return;
+  const estM = estCm / 100;
+  const imc = Math.round(peso / (estM * estM) * 10) / 10;
+  if (imcEl) imcEl.value = imc;
+  window._ibTalla = estCm;
+  recalcGET();
+}
+
+async function processInBodyFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('inbodyAiStatus');
+  status.style.display = 'block';
+  status.textContent = '✦ Leyendo el reporte InBody con IA...';
+  try {
+    const base64 = await fileToBase64(file);
+    const isImage = file.type.startsWith('image/');
+    const contentType = isImage ? file.type : 'application/pdf';
+    const contentBlock = isImage
+      ? {type:'image', source:{type:'base64', media_type:contentType, data:base64}}
+      : {type:'document', source:{type:'base64', media_type:contentType, data:base64}};
+    const res = await fetch('/api/analyze', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ base64, mediaType: file.type, tipo: 'inbody' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error del servidor');
+    const vals = data.result;
+    const campos = {
+      'ibPeso':'peso','ibEstatura':'estatura','ibIMC':'imc','ibGrasa':'porc_grasa',
+      'ibGrasaVisc':'grasa_visceral','ibMasaMusc':'masa_muscular','ibMasaGrasa':'masa_grasa',
+      'ibAgua':'agua_total','ibBMR':'bmr_inbody',
+      'seg_brazo_derecho_grasa':'seg_brazo_derecho_grasa','seg_brazo_derecho_magra':'seg_brazo_derecho_magra',
+      'seg_brazo_izquierdo_grasa':'seg_brazo_izquierdo_grasa','seg_brazo_izquierdo_magra':'seg_brazo_izquierdo_magra',
+      'seg_tronco_grasa':'seg_tronco_grasa','seg_tronco_magra':'seg_tronco_magra',
+      'seg_pierna_derecha_grasa':'seg_pierna_derecha_grasa','seg_pierna_derecha_magra':'seg_pierna_derecha_magra',
+      'seg_pierna_izquierda_grasa':'seg_pierna_izquierda_grasa','seg_pierna_izquierda_magra':'seg_pierna_izquierda_magra'
+    };
+    Object.keys(campos).forEach(function(id) {
+      const el = document.getElementById(id);
+      const key = campos[id];
+      if (el && vals[key] !== undefined) el.value = vals[key];
+    });
+    if (vals.bmr_inbody) {
+      const bmrDisp = document.getElementById('bmrDisplay');
+      if (bmrDisp) bmrDisp.textContent = vals.bmr_inbody;
+    }
+    recalcIMC();
+    evalGrasa();
+    status.textContent = '✦ Reporte extraído — revisa y corrige si es necesario';
+    status.style.background = 'var(--success-light)';
+    status.style.color = 'var(--success)';
+  } catch(e) {
+    status.textContent = 'Error al leer el reporte. Captura los valores manualmente.';
+    status.style.background = 'var(--danger-light)';
+    status.style.color = 'var(--danger)';
+  }
+}
+
+// INIT
+checkSession();
+
+// Cerrar modal al dar clic fuera
+document.getElementById('newPxModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal('newPxModal');
+});
+</script>
+</body>
+</html>
