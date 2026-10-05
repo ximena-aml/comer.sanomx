@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     if (tipo === 'inbody') {
       prompt = 'Reporte InBody. Extrae en JSON: peso, estatura, imc, porc_grasa, grasa_visceral, masa_muscular, masa_grasa, agua_total, bmr_inbody, seg_brazo_derecho_grasa, seg_brazo_derecho_magra, seg_brazo_izquierdo_grasa, seg_brazo_izquierdo_magra, seg_tronco_grasa, seg_tronco_magra, seg_pierna_derecha_grasa, seg_pierna_derecha_magra, seg_pierna_izquierda_grasa, seg_pierna_izquierda_magra. Solo JSON sin markdown.';
     } else if (tipo === 'labs') {
-      prompt = 'Laboratorio clinico. Extrae en JSON con estos nombres exactos: Glucosa, Insulina basal, HbA1c, HOMA-IR, Colesterol total, HDL, LDL, VLDL, Trigliceridos, Creatinina, BUN, Urea, Acido urico, Filtrado glomerular, TGO (AST), TGP (ALT), Fosfatasa alcalina, GGT, Bilirrubina total, Bilirrubina directa, Bilirrubina indirecta, Proteinas totales, Albumina, Globulinas, TSH, T3, T4, T3 libre, T4 libre, Vitamina D, Vitamina B12, Acido folico, Hierro serico, Ferritina, Transferrina, Saturacion de transferrina, Zinc, Magnesio, Calcio, Fosforo, Sodio serico, Potasio serico, Cloro serico, Hemoglobina, Hematocrito, Leucocitos, Plaquetas. Si dice Sodio usalo como Sodio serico. Solo JSON sin markdown.';
+      prompt = 'Laboratorio clinico. Extrae en JSON con estos nombres exactos: Glucosa, Insulina basal, HbA1c, HOMA-IR, Colesterol total, HDL, LDL, VLDL, Trigliceridos, Creatinina, BUN, Urea, Acido urico, Filtrado glomerular, TGO (AST), TGP (ALT), Fosfatasa alcalina, GGT, Bilirrubina total, Bilirrubina directa, Bilirrubina indirecta, Proteinas totales, Albumina, Globulinas, TSH, T3, T4, T3 libre, T4 libre, Vitamina D, Vitamina B12, Acido folico, Hierro serico, Ferritina, Transferrina, Saturacion de transferrina, Zinc, Magnesio, Calcio, Fosforo, Sodio serico, Potasio serico, Cloro serico, Hemoglobina, Hematocrito, Leucocitos, Plaquetas, Glucosa en orina, Proteinas en orina, pH urinario, Densidad urinaria, Microalbuminuria, Creatinina en orina, Indice albumina/creatinina. Si dice Sodio usalo como Sodio serico (igual Potasio y Cloro). Valores numericos como texto; si el resultado es Negativo usa "0". Si un parametro no aparece no lo incluyas. Solo JSON sin markdown.';
     } else {
       return res.status(400).json({ error: 'Tipo no valido' });
     }
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 2000,
         messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }]
       })
     });
