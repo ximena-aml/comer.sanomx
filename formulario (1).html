@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pre-registro · COMER.SANO MX</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #F7F6F3; --surface: #FFFFFF; --surface2: #F0EEE9; --border: #E2DDD6;
+    --text: #1A1714; --text2: #6B6560; --text3: #9E9890;
+    --accent: #2D6A4F; --accent-light: #E8F4EE; --accent-text: #1B4332;
+    --danger: #991B1B; --danger-light: #FEE2E2;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.45; }
+  .wrap { max-width: 620px; margin: 0 auto; padding: 20px 16px 120px; }
+  .brand { font-family: Georgia, serif; letter-spacing: 4px; font-size: 12px; color: var(--accent); text-align: center; margin: 8px 0 4px; }
+  h1 { font-family: Georgia, serif; font-weight: normal; font-size: 24px; text-align: center; margin-bottom: 6px; }
+  .intro { color: var(--text2); font-size: 14px; text-align: center; margin-bottom: 18px; }
+  .progress { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+  .progress div { height: 100%; background: var(--accent); width: 0; transition: width .25s; }
+  .step-label { font-size: 12px; color: var(--text3); margin-bottom: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 18px; }
+  .card h2 { font-family: Georgia, serif; font-weight: normal; font-size: 20px; margin-bottom: 4px; }
+  .card .sub { color: var(--text2); font-size: 14px; margin-bottom: 16px; }
+  .step { display: none; }
+  .step.active { display: block; }
+  .field { margin-bottom: 16px; }
+  label.lbl { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .hint { font-weight: normal; color: var(--text3); font-size: 13px; }
+  input[type=text], input[type=tel], input[type=email], input[type=number], input[type=date], input[type=time], select, textarea {
+    width: 100%; font: inherit; font-size: 16px; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: #fff; color: var(--text); -webkit-appearance: none; appearance: none;
+  }
+  select { background-image: linear-gradient(45deg, transparent 50%, #9E9890 50%), linear-gradient(135deg, #9E9890 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 32px; }
+  textarea { min-height: 76px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-light); border-color: var(--accent); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--border); background: #fff; border-radius: 20px; padding: 8px 14px; font-size: 14px; cursor: pointer; user-select: none; }
+  .chip.on { background: var(--accent-light); border-color: var(--accent); color: var(--accent-text); }
+  .hidden { display: none; }
+  .meal { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; background: var(--surface2); }
+  .meal-head { display: grid; grid-template-columns: 1fr 120px; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .meal-name { font-weight: 600; font-size: 14px; }
+  .meal textarea { min-height: 60px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(247,246,243,.96); border-top: 1px solid var(--border); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .nav-inner { max-width: 620px; margin: 0 auto; display: flex; gap: 10px; }
+  .btn { flex: 1; font: inherit; font-size: 16px; padding: 13px; border-radius: var(--radius); border: 1px solid var(--border); background: #fff; color: var(--text); cursor: pointer; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn:disabled { opacity: .5; }
+  .error { background: var(--danger-light); color: var(--danger); border-radius: var(--radius); padding: 10px 12px; font-size: 14px; margin-top: 12px; display: none; }
+  .check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--text2); }
+  .check input { width: 20px; height: 20px; margin-top: 2px; flex-shrink: 0; accent-color: var(--accent); }
+  .note { background: var(--accent-light); color: var(--accent-text); border-radius: var(--radius); padding: 12px; font-size: 14px; margin-bottom: 16px; }
+  .done { text-align: center; padding: 40px 10px; }
+  .done .ok { width: 56px; height: 56px; border-radius: 50%; background: var(--accent-light); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">COMER.SANO MX</div>
+  <h1>Pre-registro de consulta</h1>
+  <p class="intro" id="introTxt">Toma unos 10 minutos y nos ayuda a aprovechar mejor tu consulta. Todo es confidencial y puedes dejar en blanco lo que prefieras platicar en persona.</p>
+
+  <div id="formWrap">
+    <div class="progress"><div id="bar"></div></div>
+    <div class="step-label" id="stepLabel"></div>
+
+    <form id="frm" class="card" onsubmit="return false" autocomplete="on">
+
+      <!-- 1 -->
+      <section class="step" data-title="Tus datos">
+        <h2>Tus datos</h2>
+        <p class="sub">Para conocerte y tener tu expediente listo.</p>
+        <div class="field"><label class="lbl">Nombre completo *</label><input type="text" name="nombre" autocomplete="name" required></div>
+        <div class="row">
+          <div class="field"><label class="lbl">Fecha de nacimiento *</label><input type="date" name="fecha_nac" required></div>
+          <div class="field"><label class="lbl">Sexo *</label>
+            <select name="sexo" required><option value="">Elegir</option><option>Femenino</option><option>Masculino</option></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label class="lbl">Celular (WhatsApp)</label><input type="tel" name="telefono" autocomplete="tel"></div>
+          <div class="field"><label class="lbl">Estado civil</label>
+            <select name="estado_civil"><option value="">Elegir</option><option>Soltero/a</option><option>Casado/a</option><option>Unión libre</option><option>Divorciado/a</option><option>Viudo/a</option></select></div>
+        </div>
+        <div class="field"><label class="lbl">Ocupación <span class="hint">y horario de trabajo</span></label><input type="text" name="ocupacion" placeholder="Ej. contadora, 9 a 6"></div>
+        <div class="field"><label class="lbl">¿En qué te gustaría que te acompañe? *</label><textarea name="motivo" required placeholder="Cuéntame con tus palabras qué te trae a consulta"></textarea></div>
+      </section>
+
+      <!-- 4 -->
+      <section class="step" data-title="Tu día a día">
+        <h2>Tu día a día</h2>
+        <p class="sub">Sin juicios: nos ayuda a hacer un plan que sí encaje con tu vida.</p>
+        <div class="field"><label class="lbl">¿Fumas?</label>
+          <div class="chips" data-single="tabaco" data-detail="detTab"><span class="chip">No</span><span class="chip">Sí</span><span class="chip">Antes sí</span></div>
+          <input type="text" name="tabaco_det" id="detTab" class="hidden" style="margin-top:8px" placeholder="¿Qué y cuánto? Ej. 3 cigarros al día">
+        </div>
+        <div class="field"><label class="lbl">¿Tomas alcohol?</label>
+          <div class="chips" data-single="alcohol" data-detail="detAlc"><span class="chip">No</span><span class="chip">Sí</span><span class="chip">Antes sí</span></div>
+          <input type="text" name="alcohol_det" id="detAlc" class="hidden" style="margin-top:8px" placeholder="¿Qué, cuánto y cada cuándo? Ej. 2 cervezas los sábados">
+        </div>
+        <div class="field"><label class="lbl">¿Cómo duermes? <span class="hint">horas y si descansas</span></label><input type="text" name="sueno" placeholder="Ej. 6 horas, me despierto en la noche"></div>
+        <div class="field"><label class="lbl">Ejercicio o actividad física</label><input type="text" name="af_tipo" placeholder="Ej. gimnasio, caminar, ninguno"></div>
+        <div class="row">
+          <div class="field"><label class="lbl">¿Cuántos días?</label><input type="text" name="af_frec" placeholder="Ej. 3 por semana"></div>
+          <div class="field"><label class="lbl">¿Cuánto tiempo?</label><input type="text" name="af_dur" placeholder="Ej. 45 min"></div>
+        </div>
+      </section>
+
+      <!-- 5 -->
+      <section class="step" data-title="Tu alimentación">
+        <h2>Tu alimentación</h2>
+        <p class="sub">Lo que te gusta también cuenta: lo vamos a usar en tu plan.</p>
+        <div class="field"><label class="lbl">Tu apetito normalmente es…</label>
+          <div class="chips" data-single="apetito"><span class="chip">Reducido</span><span class="chip">Regular</span><span class="chip">Bueno</span><span class="chip">Excesivo</span></div>
+        </div>
+        <div class="row">
+          <div class="field"><label class="lbl">Comidas al día</label><input type="number" inputmode="numeric" min="1" max="10" name="comidas_dia"></div>
+          <div class="field"><label class="lbl">¿Cuánto tardas en comer?</label><input type="text" name="tiempo_comida" placeholder="Ej. 15 min"></div>
+        </div>
+        <div class="field"><label class="lbl">¿Quién cocina en casa?</label><input type="text" name="quien_prepara" placeholder="Ej. yo, mi mamá, compro comida"></div>
+        <div class="field"><label class="lbl">¿Dónde y con quién comes?</label><input type="text" name="donde_come" placeholder="Ej. en la oficina sola, en casa con mi familia"></div>
+        <div class="field"><label class="lbl">Alimentos que no te gustan</label><input type="text" name="disgusto"></div>
+        <div class="field"><label class="lbl">Alimentos que te caen mal</label><input type="text" name="caen_mal"></div>
+        <div class="field"><label class="lbl">Tu comida favorita</label><input type="text" name="favorito"></div>
+      </section>
+
+      <!-- 6 -->
+      <section class="step" data-title="Un día normal">
+        <h2>¿Qué comes en un día normal?</h2>
+        <p class="sub">No hay respuestas buenas ni malas: escribe lo que comes de verdad en un día entre semana, con la hora aproximada y más o menos cuánto (por ejemplo: 2 tortillas, 1 taza de arroz). Deja en blanco los tiempos que no haces.</p>
+        <div id="meals"></div>
+        <div class="field" style="margin-top:14px"><label class="lbl">¿Y el fin de semana qué cambia?</label><textarea name="finde" placeholder="Ej. desayuno más tarde, comemos fuera el domingo"></textarea></div>
+        <div class="field"><label class="lbl">¿Qué bebes durante el día? <span class="hint">agua, refresco, café…</span></label><input type="text" name="bebidas"></div>
+      </section>
+
+      <!-- 2 -->
+      <section class="step" data-title="Tu salud">
+        <h2>Tu salud</h2>
+        <p class="sub">Escribe solo lo que aplique; si algo prefieres platicarlo en persona, déjalo en blanco.</p>
+        <div class="field"><label class="lbl">Enfermedades diagnosticadas <span class="hint">y desde qué año</span></label><textarea name="enfermedades" placeholder="Ej. hipotiroidismo 2019, resistencia a la insulina 2022"></textarea></div>
+        <div class="field"><label class="lbl">Cirugías <span class="hint">y año aproximado</span></label><input type="text" name="cirugias"></div>
+        <div class="field"><label class="lbl">Medicamentos que tomas <span class="hint">nombre, dosis y cada cuándo</span></label><textarea name="medicamentos" placeholder="Ej. Metformina 850 mg, una en la comida"></textarea></div>
+        <div class="field"><label class="lbl">Suplementos o vitaminas</label><input type="text" name="suplementos"></div>
+        <div class="field"><label class="lbl">Alergias <span class="hint">a alimentos o medicamentos</span></label><input type="text" name="alergias"></div>
+        <div class="field"><label class="lbl">¿Has tenido alguna de estas molestias digestivas seguido?</label>
+          <div class="chips" data-multi="sx_gi">
+            <span class="chip">Inflamación</span><span class="chip">Gases</span><span class="chip">Estreñimiento</span><span class="chip">Diarrea</span><span class="chip">Reflujo / agruras</span><span class="chip">Náusea</span><span class="chip">Ninguna</span>
+          </div>
+        </div>
+        <div class="field"><label class="lbl">Hospitalizaciones recientes</label><input type="text" name="hospitalizaciones"></div>
+      </section>
+
+      <!-- 3 -->
+      <section class="step" data-title="Tu familia">
+        <h2>Antecedentes familiares</h2>
+        <p class="sub">Escribe quién: papá, mamá, abuelos, hermanos…</p>
+        <div class="field"><label class="lbl">Diabetes</label><input type="text" name="ahf_diabetes"></div>
+        <div class="field"><label class="lbl">Presión alta</label><input type="text" name="ahf_hta"></div>
+        <div class="field"><label class="lbl">Cáncer <span class="hint">y de qué tipo</span></label><input type="text" name="ahf_cancer"></div>
+        <div class="field"><label class="lbl">Otras <span class="hint">colesterol, tiroides, obesidad, infartos…</span></label><input type="text" name="ahf_otros"></div>
+
+        <div id="secMujer" class="hidden">
+          <h2 style="margin-top:22px">Salud femenina</h2>
+          <p class="sub">Solo si aplica.</p>
+          <div class="field"><label class="lbl">Tu menstruación es…</label>
+            <div class="chips" data-single="menstruacion">
+              <span class="chip">Regular</span><span class="chip">Irregular</span><span class="chip">Ausente</span><span class="chip">Menopausia</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field"><label class="lbl">Embarazos</label><input type="number" inputmode="numeric" min="0" name="embarazos"></div>
+            <div class="field"><label class="lbl">Abortos</label><input type="number" inputmode="numeric" min="0" name="abortos"></div>
+          </div>
+          <div class="field"><label class="lbl">¿Estás embarazada o lactando ahora?</label>
+            <div class="chips" data-single="emb_actual"><span class="chip">No</span><span class="chip">Embarazada</span><span class="chip">Lactando</span></div>
+          </div>
+          <div class="field"><label class="lbl">¿Usas anticonceptivos hormonales o terapia hormonal?</label>
+            <div class="chips" data-single="hormonal"><span class="chip">No</span><span class="chip">Sí</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7 -->
+      <section class="step" data-title="Último paso">
+        <h2>Último paso</h2>
+        <p class="sub">Ya casi terminamos.</p>
+        <div class="field"><label class="lbl">¿Has ido antes con un nutriólogo?</label>
+          <div class="chips" data-single="consultas_previas" data-detail="detPrev"><span class="chip">No</span><span class="chip">Sí</span></div>
+        </div>
+        <div id="detPrev" class="hidden">
+          <div class="field"><label class="lbl">¿Qué tipo de plan seguiste?</label><input type="text" name="tipo_plan" placeholder="Ej. conteo de calorías, keto, menú fijo"></div>
+          <div class="field"><label class="lbl">¿Te funcionó?</label>
+            <div class="chips" data-single="funciono"><span class="chip">Sí</span><span class="chip">Parcialmente</span><span class="chip">No</span></div>
+          </div>
+          <div class="field"><label class="lbl">¿Por qué lo dejaste?</label><input type="text" name="porque_dejo"></div>
+          <div class="field"><label class="lbl">¿Qué te gustó de esa experiencia?</label><input type="text" name="gusto_antes"></div>
+        </div>
+        <div class="field" style="margin-top:6px"><label class="lbl">Sobre tu peso <span class="hint">(opcional)</span></label>
+          <p class="hint" style="margin-bottom:8px">En consulta medimos tu composición corporal, así que no es necesario. Si quieres contarnos algo sobre tu peso o cómo ha cambiado, puedes hacerlo aquí.</p>
+          <div class="chips" data-single="peso_opc" data-detail="detPeso"><span class="chip">Prefiero platicarlo en consulta</span><span class="chip">Sí, quiero contarlo</span></div>
+        </div>
+        <div id="detPeso" class="hidden">
+          <div class="row">
+            <div class="field"><label class="lbl">Peso aproximado <span class="hint">kg</span></label><input type="number" inputmode="decimal" step="0.1" name="peso_ref"></div>
+            <div class="field"><label class="lbl">Estatura <span class="hint">cm</span></label><input type="number" inputmode="decimal" step="0.5" name="talla_cm" placeholder="Ej. 162"></div>
+          </div>
+          <div class="field"><label class="lbl">¿Qué te gustaría contarnos?</label><textarea name="historia_peso" placeholder="Por ejemplo, cómo ha cambiado en los últimos años"></textarea></div>
+        </div>
+        <div class="note">Si tienes laboratorios recientes (de los últimos 6 meses), tráelos a tu consulta o mándalos por WhatsApp.</div>
+        <label class="check"><input type="checkbox" name="privacidad" required><span>Acepto que COMER.SANO MX use estos datos de forma confidencial y solo para mi atención nutricional.</span></label>
+        <div class="error" id="err"></div>
+      </section>
+    </form>
+  </div>
+
+  <div id="doneWrap" class="done hidden">
+    <div class="ok">✓</div>
+    <h1>¡Gracias!</h1>
+    <p class="intro">Recibimos tus respuestas. Nos vemos en tu consulta.</p>
+  </div>
+</div>
+
+<div class="nav" id="nav">
+  <div class="nav-inner">
+    <button class="btn" id="btnBack" type="button">Atrás</button>
+    <button class="btn btn-primary" id="btnNext" type="button">Siguiente</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ggnurbdefdkbtvxhfkxf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnbnVyYmRlZmRrYnR2eGhma3hmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MDM3MjYsImV4cCI6MjEwNTI3OTcyNn0.c2ZmBl8a-e1vECmkLZz6jVbgM4mYXDnM2ELXJyhXg3I';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+const DRAFT = 'cs_prerregistro_borrador';
+
+const MEALS = [
+  {id:'Desayuno', label:'Desayuno'},
+  {id:'Colación AM', label:'Colación de la mañana'},
+  {id:'Comida', label:'Comida'},
+  {id:'Colación PM', label:'Colación de la tarde'},
+  {id:'Cena', label:'Cena'},
+  {id:'Extra', label:'Algo más (antojos, en la noche…)'}
+];
+document.getElementById('meals').innerHTML = MEALS.map((m,i) =>
+  '<div class="meal"><div class="meal-head"><div class="meal-name">' + m.label + '</div>'
+  + '<input type="time" name="hora_' + i + '" aria-label="Hora de ' + m.label + '"></div>'
+  + '<textarea name="comida_' + i + '" placeholder="Qué y cuánto"></textarea></div>').join('');
+
+const frm = document.getElementById('frm');
+const steps = Array.from(document.querySelectorAll('.step'));
+let cur = 0;
+const chipVals = {};
+
+// Chips: selección única o múltiple
+document.querySelectorAll('.chips').forEach(group => {
+  const single = group.dataset.single, multi = group.dataset.multi;
+  const key = single || multi;
+  group.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => {
+    if (single) {
+      const was = ch.classList.contains('on');
+      group.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+      if (!was) ch.classList.add('on');
+      chipVals[key] = was ? '' : ch.textContent;
+    } else {
+      if (ch.textContent === 'Ninguna') group.querySelectorAll('.chip').forEach(c => { if (c !== ch) c.classList.remove('on'); });
+      else group.querySelectorAll('.chip').forEach(c => { if (c.textContent === 'Ninguna') c.classList.remove('on'); });
+      ch.classList.toggle('on');
+      chipVals[key] = Array.from(group.querySelectorAll('.chip.on')).map(c => c.textContent);
+    }
+    if (group.dataset.detail) {
+      const v = chipVals[key];
+      document.getElementById(group.dataset.detail).classList.toggle('hidden', !v || v === 'No' || v === 'Prefiero platicarlo en consulta');
+    }
+    saveDraft();
+  }));
+});
+
+function restoreChips() {
+  document.querySelectorAll('.chips').forEach(group => {
+    const key = group.dataset.single || group.dataset.multi;
+    const v = chipVals[key];
+    group.querySelectorAll('.chip').forEach(c => {
+      c.classList.toggle('on', Array.isArray(v) ? v.includes(c.textContent) : v === c.textContent);
+    });
+    if (group.dataset.detail) document.getElementById(group.dataset.detail).classList.toggle('hidden', !v || v === 'No' || v === 'Prefiero platicarlo en consulta');
+  });
+}
+
+function toggleMujer() {
+  document.getElementById('secMujer').classList.toggle('hidden', frm.sexo.value !== 'Femenino');
+}
+frm.sexo.addEventListener('change', toggleMujer);
+
+function formData() {
+  const o = {};
+  Array.from(frm.elements).forEach(el => {
+    if (!el.name) return;
+    o[el.name] = el.type === 'checkbox' ? el.checked : el.value.trim();
+  });
+  return Object.assign(o, chipVals);
+}
+
+function saveDraft() {
+  try { localStorage.setItem(DRAFT, JSON.stringify(formData())); } catch(e) {}
+}
+function loadDraft() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(DRAFT) || 'null'); } catch(e) {}
+  if (!d) return;
+  Array.from(frm.elements).forEach(el => {
+    if (!el.name || d[el.name] === undefined) return;
+    if (el.type === 'checkbox') el.checked = !!d[el.name]; else el.value = d[el.name];
+  });
+  document.querySelectorAll('.chips').forEach(g => { const k = g.dataset.single || g.dataset.multi; if (d[k] !== undefined) chipVals[k] = d[k]; });
+  restoreChips();
+  toggleMujer();
+}
+frm.addEventListener('input', saveDraft);
+
+function show(i) {
+  cur = i;
+  steps.forEach((s,j) => s.classList.toggle('active', j === i));
+  document.getElementById('bar').style.width = ((i+1) / steps.length * 100) + '%';
+  document.getElementById('stepLabel').textContent = 'Paso ' + (i+1) + ' de ' + steps.length + ' · ' + steps[i].dataset.title;
+  document.getElementById('btnBack').style.visibility = i === 0 ? 'hidden' : 'visible';
+  document.getElementById('btnNext').textContent = i === steps.length - 1 ? 'Enviar' : 'Siguiente';
+  document.getElementById('introTxt').style.display = i === 0 ? '' : 'none';
+  window.scrollTo(0, 0);
+}
+
+function validStep(i) {
+  const req = steps[i].querySelectorAll('[required]');
+  for (const el of req) {
+    const ok = el.type === 'checkbox' ? el.checked : el.value.trim();
+    if (!ok) {
+      if (el.type === 'checkbox') showErr('Para enviar, acepta el uso confidencial de tus datos.');
+      el.focus();
+      el.style.borderColor = 'var(--danger)';
+      setTimeout(() => el.style.borderColor = '', 2500);
+      return false;
+    }
+  }
+  return true;
+}
+
+function showErr(t) { const e = document.getElementById('err'); e.textContent = t; e.style.display = 'block'; }
+
+document.getElementById('btnBack').addEventListener('click', () => { if (cur > 0) show(cur - 1); });
+document.getElementById('btnNext').addEventListener('click', async () => {
+  if (!validStep(cur)) return;
+  if (cur < steps.length - 1) { show(cur + 1); return; }
+  await enviar();
+});
+
+async function enviar() {
+  const btn = document.getElementById('btnNext');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  document.getElementById('err').style.display = 'none';
+  const d = formData();
+  d.dia_habitual = MEALS.map((m,i) => ({tiempo: m.id, hora: d['hora_'+i] || '', alimento: d['comida_'+i] || ''})).filter(r => r.alimento);
+  MEALS.forEach((m,i) => { delete d['hora_'+i]; delete d['comida_'+i]; });
+  const { error } = await sb.from('prerregistros').insert({ nombre: d.nombre, datos: d });
+  if (error) {
+    btn.disabled = false; btn.textContent = 'Enviar';
+    showErr('No se pudo enviar. Revisa tu conexión e inténtalo de nuevo. Tus respuestas siguen guardadas.');
+    return;
+  }
+  try { localStorage.removeItem(DRAFT); } catch(e) {}
+  document.getElementById('formWrap').classList.add('hidden');
+  document.getElementById('nav').classList.add('hidden');
+  document.getElementById('introTxt').style.display = 'none';
+  document.querySelector('h1').style.display = 'none';
+  document.getElementById('doneWrap').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+loadDraft();
+show(0);
+</script>
+</body>
+</html>
