@@ -90,6 +90,31 @@
         <div class="field"><label class="lbl">¿En qué te gustaría que te acompañe? *</label><textarea name="motivo" required placeholder="Cuéntame con tus palabras qué te trae a consulta"></textarea></div>
       </section>
 
+      <!-- 3 -->
+      <section class="step" data-title="Tu familia">
+        <h2>Antecedentes familiares</h2>
+        <p class="sub">Escribe quién: papá, mamá, abuelos, hermanos…</p>
+        <div class="field"><label class="lbl">Diabetes</label><input type="text" name="ahf_diabetes"></div>
+        <div class="field"><label class="lbl">Presión alta</label><input type="text" name="ahf_hta"></div>
+        <div class="field"><label class="lbl">Cáncer <span class="hint">y de qué tipo</span></label><input type="text" name="ahf_cancer"></div>
+        <div class="field"><label class="lbl">Otras <span class="hint">colesterol, tiroides, obesidad, infartos…</span></label><input type="text" name="ahf_otros"></div>
+      </section>
+
+      <!-- 2 -->
+      <section class="step" data-title="Tu salud">
+        <h2>Tu salud</h2>
+        <p class="sub">Escribe solo lo que aplique; si algo prefieres platicarlo en persona, déjalo en blanco.</p>
+        <div class="field"><label class="lbl">Enfermedades diagnosticadas <span class="hint">y desde qué año</span></label><textarea name="enfermedades" placeholder="Ej. hipotiroidismo 2019, resistencia a la insulina 2022"></textarea></div>
+        <div class="field"><label class="lbl">Cirugías <span class="hint">y año aproximado</span></label><input type="text" name="cirugias"></div>
+        <div class="field"><label class="lbl">Alergias <span class="hint">a alimentos o medicamentos</span></label><input type="text" name="alergias"></div>
+        <div class="field"><label class="lbl">¿Has tenido alguna de estas molestias digestivas seguido?</label>
+          <div class="chips" data-multi="sx_gi">
+            <span class="chip">Inflamación</span><span class="chip">Gases</span><span class="chip">Estreñimiento</span><span class="chip">Diarrea</span><span class="chip">Reflujo / agruras</span><span class="chip">Náusea</span><span class="chip">Ninguna</span>
+          </div>
+        </div>
+        <div class="field"><label class="lbl">Hospitalizaciones recientes</label><input type="text" name="hospitalizaciones"></div>
+      </section>
+
       <!-- 4 -->
       <section class="step" data-title="Tu día a día">
         <h2>Tu día a día</h2>
@@ -107,6 +132,29 @@
         <div class="row">
           <div class="field"><label class="lbl">¿Cuántos días?</label><input type="text" name="af_frec" placeholder="Ej. 3 por semana"></div>
           <div class="field"><label class="lbl">¿Cuánto tiempo?</label><input type="text" name="af_dur" placeholder="Ej. 45 min"></div>
+        </div>
+        <div class="field"><label class="lbl">Medicamentos que tomas <span class="hint">nombre, dosis y cada cuándo</span></label><textarea name="medicamentos" placeholder="Ej. Metformina 850 mg, una en la comida"></textarea></div>
+        <div class="field"><label class="lbl">Suplementos o vitaminas</label><input type="text" name="suplementos"></div>
+      </section>
+
+      <!-- F -->
+      <section class="step" data-title="Salud femenina" data-only="Femenino">
+        <h2>Salud femenina</h2>
+        <p class="sub">Solo si aplica.</p>
+        <div class="field"><label class="lbl">Tu menstruación es…</label>
+          <div class="chips" data-single="menstruacion">
+            <span class="chip">Regular</span><span class="chip">Irregular</span><span class="chip">Ausente</span><span class="chip">Menopausia</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field"><label class="lbl">Embarazos</label><input type="number" inputmode="numeric" min="0" name="embarazos"></div>
+          <div class="field"><label class="lbl">Abortos</label><input type="number" inputmode="numeric" min="0" name="abortos"></div>
+        </div>
+        <div class="field"><label class="lbl">¿Estás embarazada o lactando ahora?</label>
+          <div class="chips" data-single="emb_actual"><span class="chip">No</span><span class="chip">Embarazada</span><span class="chip">Lactando</span></div>
+        </div>
+        <div class="field"><label class="lbl">¿Usas anticonceptivos hormonales o terapia hormonal?</label>
+          <div class="chips" data-single="hormonal"><span class="chip">No</span><span class="chip">Sí</span></div>
         </div>
       </section>
 
@@ -135,53 +183,6 @@
         <div id="meals"></div>
         <div class="field" style="margin-top:14px"><label class="lbl">¿Y el fin de semana qué cambia?</label><textarea name="finde" placeholder="Ej. desayuno más tarde, comemos fuera el domingo"></textarea></div>
         <div class="field"><label class="lbl">¿Qué bebes durante el día? <span class="hint">agua, refresco, café…</span></label><input type="text" name="bebidas"></div>
-      </section>
-
-      <!-- 2 -->
-      <section class="step" data-title="Tu salud">
-        <h2>Tu salud</h2>
-        <p class="sub">Escribe solo lo que aplique; si algo prefieres platicarlo en persona, déjalo en blanco.</p>
-        <div class="field"><label class="lbl">Enfermedades diagnosticadas <span class="hint">y desde qué año</span></label><textarea name="enfermedades" placeholder="Ej. hipotiroidismo 2019, resistencia a la insulina 2022"></textarea></div>
-        <div class="field"><label class="lbl">Cirugías <span class="hint">y año aproximado</span></label><input type="text" name="cirugias"></div>
-        <div class="field"><label class="lbl">Medicamentos que tomas <span class="hint">nombre, dosis y cada cuándo</span></label><textarea name="medicamentos" placeholder="Ej. Metformina 850 mg, una en la comida"></textarea></div>
-        <div class="field"><label class="lbl">Suplementos o vitaminas</label><input type="text" name="suplementos"></div>
-        <div class="field"><label class="lbl">Alergias <span class="hint">a alimentos o medicamentos</span></label><input type="text" name="alergias"></div>
-        <div class="field"><label class="lbl">¿Has tenido alguna de estas molestias digestivas seguido?</label>
-          <div class="chips" data-multi="sx_gi">
-            <span class="chip">Inflamación</span><span class="chip">Gases</span><span class="chip">Estreñimiento</span><span class="chip">Diarrea</span><span class="chip">Reflujo / agruras</span><span class="chip">Náusea</span><span class="chip">Ninguna</span>
-          </div>
-        </div>
-        <div class="field"><label class="lbl">Hospitalizaciones recientes</label><input type="text" name="hospitalizaciones"></div>
-      </section>
-
-      <!-- 3 -->
-      <section class="step" data-title="Tu familia">
-        <h2>Antecedentes familiares</h2>
-        <p class="sub">Escribe quién: papá, mamá, abuelos, hermanos…</p>
-        <div class="field"><label class="lbl">Diabetes</label><input type="text" name="ahf_diabetes"></div>
-        <div class="field"><label class="lbl">Presión alta</label><input type="text" name="ahf_hta"></div>
-        <div class="field"><label class="lbl">Cáncer <span class="hint">y de qué tipo</span></label><input type="text" name="ahf_cancer"></div>
-        <div class="field"><label class="lbl">Otras <span class="hint">colesterol, tiroides, obesidad, infartos…</span></label><input type="text" name="ahf_otros"></div>
-
-        <div id="secMujer" class="hidden">
-          <h2 style="margin-top:22px">Salud femenina</h2>
-          <p class="sub">Solo si aplica.</p>
-          <div class="field"><label class="lbl">Tu menstruación es…</label>
-            <div class="chips" data-single="menstruacion">
-              <span class="chip">Regular</span><span class="chip">Irregular</span><span class="chip">Ausente</span><span class="chip">Menopausia</span>
-            </div>
-          </div>
-          <div class="row">
-            <div class="field"><label class="lbl">Embarazos</label><input type="number" inputmode="numeric" min="0" name="embarazos"></div>
-            <div class="field"><label class="lbl">Abortos</label><input type="number" inputmode="numeric" min="0" name="abortos"></div>
-          </div>
-          <div class="field"><label class="lbl">¿Estás embarazada o lactando ahora?</label>
-            <div class="chips" data-single="emb_actual"><span class="chip">No</span><span class="chip">Embarazada</span><span class="chip">Lactando</span></div>
-          </div>
-          <div class="field"><label class="lbl">¿Usas anticonceptivos hormonales o terapia hormonal?</label>
-            <div class="chips" data-single="hormonal"><span class="chip">No</span><span class="chip">Sí</span></div>
-          </div>
-        </div>
       </section>
 
       <!-- 7 -->
@@ -290,10 +291,9 @@ function restoreChips() {
   });
 }
 
-function toggleMujer() {
-  document.getElementById('secMujer').classList.toggle('hidden', frm.sexo.value !== 'Femenino');
-}
-frm.sexo.addEventListener('change', toggleMujer);
+function pasos() { return steps.filter(s => !s.dataset.only || frm.sexo.value === s.dataset.only); }
+function toggleMujer() {}
+frm.sexo.addEventListener('change', () => show(cur));
 
 function formData() {
   const o = {};
@@ -322,18 +322,19 @@ function loadDraft() {
 frm.addEventListener('input', saveDraft);
 
 function show(i) {
+  const vis = pasos();
   cur = i;
-  steps.forEach((s,j) => s.classList.toggle('active', j === i));
-  document.getElementById('bar').style.width = ((i+1) / steps.length * 100) + '%';
-  document.getElementById('stepLabel').textContent = 'Paso ' + (i+1) + ' de ' + steps.length + ' · ' + steps[i].dataset.title;
+  steps.forEach(s => s.classList.toggle('active', s === vis[i]));
+  document.getElementById('bar').style.width = ((i+1) / vis.length * 100) + '%';
+  document.getElementById('stepLabel').textContent = 'Paso ' + (i+1) + ' de ' + vis.length + ' · ' + vis[i].dataset.title;
   document.getElementById('btnBack').style.visibility = i === 0 ? 'hidden' : 'visible';
-  document.getElementById('btnNext').textContent = i === steps.length - 1 ? 'Enviar' : 'Siguiente';
+  document.getElementById('btnNext').textContent = i === vis.length - 1 ? 'Enviar' : 'Siguiente';
   document.getElementById('introTxt').style.display = i === 0 ? '' : 'none';
   window.scrollTo(0, 0);
 }
 
 function validStep(i) {
-  const req = steps[i].querySelectorAll('[required]');
+  const req = pasos()[i].querySelectorAll('[required]');
   for (const el of req) {
     const ok = el.type === 'checkbox' ? el.checked : el.value.trim();
     if (!ok) {
@@ -352,7 +353,7 @@ function showErr(t) { const e = document.getElementById('err'); e.textContent = 
 document.getElementById('btnBack').addEventListener('click', () => { if (cur > 0) show(cur - 1); });
 document.getElementById('btnNext').addEventListener('click', async () => {
   if (!validStep(cur)) return;
-  if (cur < steps.length - 1) { show(cur + 1); return; }
+  if (cur < pasos().length - 1) { show(cur + 1); return; }
   await enviar();
 });
 
