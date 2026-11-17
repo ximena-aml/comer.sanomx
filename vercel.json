@@ -2,7 +2,9 @@
   "functions": {
     "api/analyze.js": {
       "maxDuration": 30
+    },
+    "api/nota.js": {
+      "maxDuration": 60
     }
   }
 }
-

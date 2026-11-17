@@ -764,7 +764,7 @@ async function loadTab() {
   else if (currentTab === 'labs') await renderLabs(el);
   else if (currentTab === 'recetario') renderProxima(el, 'Recetario');
   else if (currentTab === 'seguimiento') renderProxima(el, 'Seguimiento / Educación');
-  else if (currentTab === 'pes') renderProxima(el, 'Notas PES / ADIME');
+  else if (currentTab === 'pes') await renderPes(el);
 }
 
 function renderProxima(el, nombre) {
@@ -1540,7 +1540,7 @@ async function processLabFile(input) {
     const base64 = await fileToBase64(file);
     const res = await fetch('/api/analyze', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers: await apiHeaders(),
       body: JSON.stringify({ base64, mediaType: file.type, tipo: 'labs' })
     });
     const data = await res.json();
@@ -1955,7 +1955,7 @@ async function processInBodyFile(input) {
       : {type:'document', source:{type:'base64', media_type:contentType, data:base64}};
     const res = await fetch('/api/analyze', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers: await apiHeaders(),
       body: JSON.stringify({ base64, mediaType: file.type, tipo: 'inbody' })
     });
     const data = await res.json();
@@ -2591,6 +2591,284 @@ async function descartarPrerregistro() {
   await sb.from('prerregistros').update({estado: 'descartado'}).eq('id', preActual.id);
   closeModal('preModal');
   await loadPrerregistros();
+}
+
+// TAB NOTAS PES / ADIME
+async function apiHeaders() {
+  const { data } = await sb.auth.getSession();
+  const token = data && data.session ? data.session.access_token : '';
+  return {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token};
+}
+
+let notaActual = null;   // {id?, fecha, pes:[], evaluacion, intervencion, monitoreo, nota_extensa}
+let notaFaltantes = [];
+
+function hoyISO() { return new Date().toISOString().split('T')[0]; }
+function notaVacia() { return {fecha: hoyISO(), pes: [], evaluacion: '', intervencion: '', monitoreo: '', nota_extensa: ''}; }
+
+function limpiarObj(o) {
+  const r = {};
+  Object.keys(o || {}).forEach(k => {
+    const v = o[k];
+    if (v === null || v === undefined || v === '' || v === '[]' || (Array.isArray(v) && !v.length)) return;
+    if (['id', 'paciente_id', 'created_at', 'updated_at'].includes(k)) return;
+    r[k] = v;
+  });
+  return r;
+}
+
+// Junta los datos del expediente para la IA (sin nombre ni teléfono)
+async function contextoPaciente() {
+  const id = currentPx.id;
+  const [hcRes, ibRes, labRes, planRes] = await Promise.all([
+    sb.from('historias_clinicas').select('*').eq('paciente_id', id).maybeSingle(),
+    sb.from('inbody_registros').select('*').eq('paciente_id', id).order('fecha', {ascending: false}).limit(3),
+    sb.from('laboratorios').select('*').eq('paciente_id', id).order('fecha', {ascending: false}).limit(2),
+    sb.from('planes_smae').select('*').eq('paciente_id', id).order('fecha', {ascending: false}).limit(1)
+  ]);
+  const edad = currentPx.fecha_nac ? Math.floor((new Date() - new Date(currentPx.fecha_nac)) / 31557600000) : null;
+  const hc = limpiarObj(hcRes.data);
+  if (hc.medicamentos) { try { hc.medicamentos = JSON.parse(hc.medicamentos); } catch (e) {} }
+  return {
+    fecha_consulta: hoyISO(),
+    edad, sexo: currentPx.sexo || '', motivo_consulta: currentPx.motivo_consulta || '',
+    historia_clinica: hc,
+    inbody: (ibRes.data || []).map(r => limpiarObj(r)),
+    laboratorios: (labRes.data || []).map(r => ({fecha: r.fecha, resultados: r.resultados})),
+    plan_smae: (planRes.data || []).map(r => ({fecha: r.fecha, equivalentes: r.equivalentes, tiempos: r.tiempos}))[0] || null
+  };
+}
+
+async function renderPes(el) {
+  const { data, error } = await sb.from('notas_pes').select('*').eq('paciente_id', currentPx.id).order('fecha', {ascending: false});
+  if (error) {
+    el.innerHTML = '<div class="empty-state"><h3>Falta crear la tabla de notas</h3><p>Corre en Supabase el SQL de notas PES/ADIME y vuelve a abrir esta pestaña.</p></div>';
+    return;
+  }
+  if (!notaActual || notaActual._px !== currentPx.id) { notaActual = notaVacia(); notaActual._px = currentPx.id; notaFaltantes = []; }
+  const hist = (data || []).map(n => {
+    const codigos = (n.pes || []).map(p => p.codigo).filter(Boolean).join(' · ') || 'Sin PES';
+    const f = new Date(n.fecha + 'T12:00').toLocaleDateString('es-MX', {day: 'numeric', month: 'short', year: 'numeric'});
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">'
+      + '<div style="flex:1"><b>' + f + '</b><div class="text-muted" style="font-size:12px">' + esc(codigos) + '</div></div>'
+      + '<button class="btn btn-sm" onclick="abrirNota(\'' + n.id + '\')">Abrir</button>'
+      + '<button class="btn btn-sm" style="color:var(--danger)" onclick="eliminarNota(\'' + n.id + '\')">Eliminar</button></div>';
+  }).join('');
+  window._notasPx = data || [];
+  el.innerHTML = '<div class="card">'
+    + '<div class="card-title">' + (notaActual.id ? 'Editando nota guardada' : 'Nueva nota') + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px">'
+    + '<div class="field" style="margin:0"><label>Fecha de consulta</label><input type="date" id="notaFecha" value="' + esc(notaActual.fecha) + '"></div>'
+    + '<button class="btn btn-primary" id="btnProponer" onclick="proponerNota()">✦ Proponer con IA</button>'
+    + (notaActual.id ? '<button class="btn" onclick="nuevaNota()">Nueva nota</button>' : '')
+    + '</div>'
+    + '<div class="text-muted" style="font-size:12px;margin-bottom:12px">La IA usa la historia clínica, los últimos InBody, laboratorios y el plan SMAE. No se le envía el nombre del paciente. Revisa todo antes de guardar.</div>'
+    + '<div id="notaStatus" style="display:none;margin-bottom:12px;padding:12px;background:var(--accent-light);border-radius:var(--radius);font-size:13px;font-family:sans-serif;color:var(--accent-text)"></div>'
+    + '<div id="notaFaltan"></div>'
+    + '</div>'
+    + '<div class="card"><div class="card-title">Diagnóstico nutricio (PES)</div><div id="pesRows"></div>'
+    + '<button class="btn btn-sm" onclick="agregarPes()">+ Agregar diagnóstico</button></div>'
+    + '<div class="card"><div class="card-title">Nota ADIME</div>'
+    + '<div class="field"><label>A · Evaluación</label><textarea id="notaEval" style="min-height:120px">' + esc(notaActual.evaluacion) + '</textarea></div>'
+    + '<div class="field mt12"><label>D · Diagnóstico</label><div class="text-muted" style="font-size:12px">Se toma de los PES de arriba.</div></div>'
+    + '<div class="field mt12"><label>I · Intervención</label><textarea id="notaInt" style="min-height:100px">' + esc(notaActual.intervencion) + '</textarea></div>'
+    + '<div class="field mt12"><label>M/E · Monitoreo y evaluación</label><textarea id="notaMon" style="min-height:90px">' + esc(notaActual.monitoreo) + '</textarea></div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px">'
+    + '<button class="btn btn-primary" id="btnGuardarNota" onclick="guardarNota()">Guardar nota</button>'
+    + '<button class="btn" onclick="imprimirNota(false)">Imprimir nota breve</button>'
+    + '</div></div>'
+    + '<div class="card"><div class="card-title">Versión extensa para médico</div>'
+    + '<div class="text-muted" style="font-size:12px;margin-bottom:10px">Convierte la nota de arriba en un informe en párrafos. Puedes editarlo antes de copiarlo o imprimirlo.</div>'
+    + '<button class="btn" id="btnExtensa" onclick="hacerExtensa()">✦ Hacer versión extensa</button>'
+    + '<textarea id="notaExt" style="min-height:220px;margin-top:12px;' + (notaActual.nota_extensa ? '' : 'display:none') + '">' + esc(notaActual.nota_extensa) + '</textarea>'
+    + '<div id="extBtns" style="display:' + (notaActual.nota_extensa ? 'flex' : 'none') + ';flex-wrap:wrap;gap:10px;margin-top:10px">'
+    + '<button class="btn btn-sm" onclick="copiarExtensa()">Copiar texto</button>'
+    + '<button class="btn btn-sm" onclick="imprimirNota(true)">Imprimir para médico</button></div></div>'
+    + '<div class="card"><div class="card-title">Notas anteriores</div>'
+    + (hist || '<div class="text-muted">Aún no hay notas guardadas.</div>') + '</div>';
+  pintarPes();
+  pintarFaltantes();
+}
+
+function leerNota() {
+  const pes = [];
+  document.querySelectorAll('#pesRows .pes-row').forEach(r => {
+    const v = c => r.querySelector('[data-c="' + c + '"]').value.trim();
+    const p = {codigo: v('codigo'), problema: v('problema'), etiologia: v('etiologia'), signos: v('signos')};
+    if (p.codigo || p.problema || p.etiologia || p.signos) pes.push(p);
+  });
+  notaActual.pes = pes;
+  notaActual.fecha = g('notaFecha') || hoyISO();
+  notaActual.evaluacion = g('notaEval');
+  notaActual.intervencion = g('notaInt');
+  notaActual.monitoreo = g('notaMon');
+  const ext = document.getElementById('notaExt');
+  if (ext) notaActual.nota_extensa = ext.value;
+  return notaActual;
+}
+
+function pintarPes() {
+  const box = document.getElementById('pesRows');
+  if (!notaActual.pes.length) { box.innerHTML = '<div class="text-muted" style="margin-bottom:12px">Sin diagnósticos todavía. Usa "Proponer con IA" o agrégalos a mano.</div>'; return; }
+  box.innerHTML = notaActual.pes.map((p, i) =>
+    '<div class="pes-row" style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px">'
+    + '<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><b style="min-width:20px">' + (i + 1) + '.</b>'
+    + '<input type="text" data-c="codigo" placeholder="Código, ej. NI-1.3" style="max-width:130px" value="' + esc(p.codigo) + '">'
+    + '<input type="text" data-c="problema" placeholder="Problema" style="flex:1" value="' + esc(p.problema) + '">'
+    + '<button class="btn btn-sm" title="Subir prioridad" onclick="moverPes(' + i + ',-1)"' + (i === 0 ? ' disabled' : '') + '>↑</button>'
+    + '<button class="btn btn-sm" style="color:var(--danger)" onclick="quitarPes(' + i + ')">Quitar</button></div>'
+    + '<div class="field"><label>Relacionado con (etiología)</label><textarea data-c="etiologia" style="min-height:50px">' + esc(p.etiologia) + '</textarea></div>'
+    + '<div class="field mt12"><label>Evidenciado por (signos y síntomas)</label><textarea data-c="signos" style="min-height:50px">' + esc(p.signos) + '</textarea></div>'
+    + '</div>').join('');
+}
+
+function pintarFaltantes() {
+  const box = document.getElementById('notaFaltan');
+  if (!box) return;
+  box.innerHTML = notaFaltantes.length
+    ? '<div style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px"><b>Datos que faltan para confirmar:</b><ul style="margin:6px 0 0 18px">'
+      + notaFaltantes.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul></div>'
+    : '';
+}
+
+function agregarPes() {
+  leerNota();
+  if (notaActual.pes.length >= 3 && !confirm('Ya hay 3 diagnósticos. ¿Agregar otro de todos modos?')) return;
+  notaActual.pes.push({codigo: '', problema: '', etiologia: '', signos: ''});
+  pintarPes();
+}
+function quitarPes(i) { leerNota(); notaActual.pes.splice(i, 1); pintarPes(); }
+function moverPes(i, d) { leerNota(); const p = notaActual.pes; const j = i + d; if (j < 0 || j >= p.length) return; [p[i], p[j]] = [p[j], p[i]]; pintarPes(); }
+
+function notaStatus(t) { const s = document.getElementById('notaStatus'); if (!s) return; s.style.display = t ? 'block' : 'none'; s.textContent = t || ''; }
+
+async function llamarNota(cuerpo) {
+  const res = await fetch('/api/nota', {method: 'POST', headers: await apiHeaders(), body: JSON.stringify(cuerpo)});
+  let data = {};
+  try { data = await res.json(); } catch (e) { throw new Error(res.status === 504 ? 'La IA tardó demasiado. Inténtalo de nuevo.' : 'Error del servidor'); }
+  if (!res.ok) throw new Error(data.error || 'Error del servidor');
+  return data.result;
+}
+
+async function proponerNota() {
+  leerNota();
+  const tieneTexto = notaActual.pes.length || notaActual.evaluacion || notaActual.intervencion || notaActual.monitoreo;
+  if (tieneTexto && !confirm('Esto reemplaza lo que hay escrito en la nota (PES y ADIME). ¿Continuar?')) return;
+  const btn = document.getElementById('btnProponer');
+  btn.disabled = true;
+  notaStatus('✦ Revisando el expediente y proponiendo diagnósticos… (puede tardar hasta un minuto)');
+  try {
+    const r = await llamarNota({modo: 'pes', contexto: await contextoPaciente()});
+    notaActual.pes = r.pes || [];
+    notaActual.evaluacion = r.evaluacion || '';
+    notaActual.intervencion = r.intervencion || '';
+    notaActual.monitoreo = r.monitoreo || '';
+    notaFaltantes = r.faltantes || [];
+    await renderPes(document.getElementById('tabContent'));
+    showToast('Propuesta lista. Revísala antes de guardar.');
+  } catch (e) {
+    notaStatus('');
+    showToast('Error: ' + (e.message || e));
+  } finally {
+    const b = document.getElementById('btnProponer'); if (b) b.disabled = false;
+  }
+}
+
+async function hacerExtensa() {
+  leerNota();
+  if (!notaActual.pes.length && !notaActual.evaluacion) { showToast('Primero escribe o propone la nota breve'); return; }
+  if (notaActual.nota_extensa && !confirm('Esto reemplaza la versión extensa actual. ¿Continuar?')) return;
+  const btn = document.getElementById('btnExtensa');
+  btn.disabled = true; btn.textContent = '✦ Redactando…';
+  try {
+    const ctx = await contextoPaciente();
+    const nota = {pes: notaActual.pes, evaluacion: notaActual.evaluacion, intervencion: notaActual.intervencion, monitoreo: notaActual.monitoreo};
+    notaActual.nota_extensa = await llamarNota({modo: 'extensa', contexto: {edad: ctx.edad, sexo: ctx.sexo, motivo_consulta: ctx.motivo_consulta}, nota});
+    const ext = document.getElementById('notaExt');
+    ext.value = notaActual.nota_extensa; ext.style.display = '';
+    document.getElementById('extBtns').style.display = 'flex';
+    showToast('Versión extensa lista. Guarda la nota para conservarla.');
+  } catch (e) {
+    showToast('Error: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = '✦ Hacer versión extensa';
+  }
+}
+
+async function copiarExtensa() {
+  const t = g('notaExt');
+  try { await navigator.clipboard.writeText(t); showToast('Texto copiado'); }
+  catch (e) { const el = document.getElementById('notaExt'); el.select(); document.execCommand('copy'); showToast('Texto copiado'); }
+}
+
+async function guardarNota() {
+  leerNota();
+  const btn = document.getElementById('btnGuardarNota');
+  btn.disabled = true;
+  const fila = {
+    paciente_id: currentPx.id, fecha: notaActual.fecha, pes: notaActual.pes,
+    evaluacion: notaActual.evaluacion, intervencion: notaActual.intervencion,
+    monitoreo: notaActual.monitoreo, nota_extensa: notaActual.nota_extensa
+  };
+  const res = notaActual.id
+    ? await sb.from('notas_pes').update(fila).eq('id', notaActual.id).select().single()
+    : await sb.from('notas_pes').insert(fila).select().single();
+  btn.disabled = false;
+  if (res.error) { showToast('Error al guardar: ' + res.error.message); return; }
+  notaActual.id = res.data.id;
+  showToast('Nota guardada ✓');
+  await renderPes(document.getElementById('tabContent'));
+}
+
+function nuevaNota() {
+  notaActual = notaVacia(); notaActual._px = currentPx.id; notaFaltantes = [];
+  renderPes(document.getElementById('tabContent'));
+}
+
+function abrirNota(id) {
+  const n = (window._notasPx || []).find(x => String(x.id) === String(id));
+  if (!n) return;
+  notaActual = {id: n.id, _px: currentPx.id, fecha: n.fecha, pes: n.pes || [], evaluacion: n.evaluacion || '', intervencion: n.intervencion || '', monitoreo: n.monitoreo || '', nota_extensa: n.nota_extensa || ''};
+  notaFaltantes = [];
+  renderPes(document.getElementById('tabContent'));
+  window.scrollTo(0, 0);
+}
+
+async function eliminarNota(id) {
+  if (!confirm('¿Eliminar esta nota? No se puede deshacer.')) return;
+  const { error } = await sb.from('notas_pes').delete().eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return; }
+  if (notaActual && String(notaActual.id) === String(id)) { notaActual = notaVacia(); notaActual._px = currentPx.id; }
+  showToast('Nota eliminada');
+  renderPes(document.getElementById('tabContent'));
+}
+
+function imprimirNota(extensa) {
+  leerNota();
+  const n = notaActual;
+  const f = new Date(n.fecha + 'T12:00').toLocaleDateString('es-MX', {day: 'numeric', month: 'long', year: 'numeric'});
+  const edad = currentPx.fecha_nac ? Math.floor((new Date() - new Date(currentPx.fecha_nac)) / 31557600000) + ' años' : '';
+  const txt = s => esc(s).replace(/\n/g, '<br>');
+  const pes = n.pes.map((p, i) => '<p><b>' + (i + 1) + '. ' + esc(p.codigo) + ' ' + esc(p.problema) + '</b> relacionado con ' + esc(p.etiologia) + ', evidenciado por ' + esc(p.signos) + '.</p>').join('');
+  const cuerpo = extensa
+    ? '<div style="text-align:justify">' + txt(n.nota_extensa) + '</div>'
+    : '<h3>Evaluación</h3><p>' + txt(n.evaluacion) + '</p><h3>Diagnóstico nutricio</h3>' + pes
+      + '<h3>Intervención</h3><p>' + txt(n.intervencion) + '</p><h3>Monitoreo y evaluación</h3><p>' + txt(n.monitoreo) + '</p>';
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Permite las ventanas emergentes para imprimir'); return; }
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Nota nutricia</title><style>'
+    + 'body{font-family:"Century Gothic",Futura,sans-serif;font-size:11pt;color:#222;max-width:720px;margin:32px auto;padding:0 24px;line-height:1.45}'
+    + 'h1{font-size:15pt;color:#2D6A4F;margin:0}h3{font-size:11pt;color:#2D6A4F;text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px}'
+    + '.cab{border-bottom:2px solid #2D6A4F;padding-bottom:10px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end}'
+    + '.firma{margin-top:48px;text-align:center}</style></head><body>'
+    + '<div class="cab"><div><h1>COMER.SANO MX</h1><div>' + (extensa ? 'Informe nutricio para médico tratante' : 'Nota de nutrición clínica (ADIME)') + '</div></div><div style="text-align:right">' + f + '</div></div>'
+    + '<p><b>Paciente:</b> ' + esc(currentPx.nombre) + (edad ? ' · ' + edad : '') + (currentPx.sexo ? ' · ' + esc(currentPx.sexo) : '') + '</p>'
+    + cuerpo
+    + '<div class="firma">______________________________<br>MNC Ana Ximena Alejo Muñoz Ledo<br>Ced prof: 12998799</div>'
+    + '</body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
 }
 
 // INIT

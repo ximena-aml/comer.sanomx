@@ -1,10 +1,18 @@
+const SUPABASE_URL = 'https://ggnurbdefdkbtvxhfkxf.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnbnVyYmRlZmRrYnR2eGhma3hmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MDM3MjYsImV4cCI6MjEwNTI3OTcyNn0.c2ZmBl8a-e1vECmkLZz6jVbgM4mYXDnM2ELXJyhXg3I';
+
+// Solo la cuenta de Ximena puede usar esta función (evita que extraños gasten su crédito)
+async function sesionValida(req) {
+  const auth = req.headers.authorization || '';
+  if (!auth.startsWith('Bearer ')) return false;
+  const r = await fetch(SUPABASE_URL + '/auth/v1/user', { headers: { apikey: SUPABASE_ANON, Authorization: auth } });
+  return r.ok;
+}
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   try {
+    if (!(await sesionValida(req))) return res.status(401).json({ error: 'Tu sesión expiró. Vuelve a iniciar sesión.' });
     const { base64, mediaType, tipo } = req.body;
     if (!base64 || !mediaType || !tipo) return res.status(400).json({ error: 'Faltan parametros' });
     const isImage = mediaType.startsWith('image/');
