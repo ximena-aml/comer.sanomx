@@ -153,7 +153,7 @@ export default async function handler(req, res) {
       result = await pedir(sys, texto, ESQ_MENU);
     } else if (modo === 'equivalentes') {
       const sys = BASE + reglasProtocolos(ajustes) + extra + `
-Arma la tabla de equivalentes del plan: solo para los grupos que tiene su plan SMAE (equivalentes > 0), 8-14 alimentos por grupo, comunes en México y que el paciente sí come; la porción de 1 equivalente SMAE en medida casera (T, C, c, Pza, g).
+Arma la tabla de equivalentes del plan: solo para los grupos que tiene su plan SMAE (equivalentes > 0), 20-25 alimentos por grupo, comunes en México y que el paciente sí come, variados (ej. en cereales: tortilla, pan, arroz, pastas, avena, tubérculos, elotes, galletas; en origen animal: res, pollo, pescado, huevo, quesos, embutidos de pavo, según su caso); la porción de 1 equivalente SMAE en medida casera (T, C, c, Pza, g).
 Columna "color": déjala vacía "" salvo que haya protocolo bajo en FODMAP; en ese caso marca cada alimento como "libre", "porcion" (solo en la porción indicada) o "evitar" (evitar por ahora).
 Recomendaciones: "comer_fuera" (qué elegir si come fuera o en comedor, y qué antojitos evitar, según dónde come) y "generales" agrupadas por tema con viñetas cortas, adaptadas a su caso y protocolos. Frases cortas, tuteo.`;
       result = await pedir(sys, ctx + '\n\nArma la tabla de equivalentes y las recomendaciones.', ESQ_EQUIV);
