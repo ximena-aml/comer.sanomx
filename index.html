@@ -488,6 +488,7 @@
   }
   #printArea .p-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #2D6A4F; padding-bottom: 6px; margin-bottom: 10px; }
   #printArea .p-marca { letter-spacing: 3px; color: #2D6A4F; font-size: 11pt; }
+  #printArea .p-logo { height: 52px; width: auto; display: block; }
   #printArea .p-titulo { font-size: 14pt; }
   #printArea .p-datos { display: flex; gap: 40px; margin-bottom: 10px; }
   #printArea .p-resumen { margin-bottom: 10px; color: #444; }
@@ -521,7 +522,7 @@
 <!-- LOGIN -->
 <div class="login-wrap" id="loginWrap">
   <div class="login-card">
-    <div class="login-logo">COMER.SANO MX</div>
+    <img src="/marca/logo-vertical.svg" alt="comer.sanomx" style="height:96px;width:auto;display:block;margin:0 auto 12px">
     <h1 class="login-title">Sistema Clínico</h1>
     <p class="login-sub">Acceso restringido — uso exclusivo del consultorio</p>
 
@@ -543,7 +544,7 @@
 
   <!-- TOPBAR -->
   <div class="topbar">
-    <div class="topbar-logo">COMER.SANO MX</div>
+    <img class="topbar-logo" src="/marca/logo-horizontal.svg" alt="comer.sanomx" style="height:30px;width:auto;display:block">
     <div class="topbar-divider"></div>
     <div class="topbar-patient" id="topbarPatient">
       <span>Selecciona un paciente para comenzar</span>
@@ -2407,6 +2408,12 @@ async function smaeSave() {
   else { showToast('Plan guardado ✓'); await renderSMAE(document.getElementById('tabContent')); }
 }
 
+// Espera a que carguen las imágenes del área de impresión (el logo) antes de abrir el diálogo
+function imprimirListo() {
+  const imgs = Array.from(document.querySelectorAll('#printArea img'));
+  Promise.all(imgs.map(i => i.decode ? i.decode().catch(() => {}) : null)).then(() => setTimeout(() => window.print(), 50));
+}
+
 function generarPDF() {
   if (!currentPx) return;
   var equiv = smaeLeerEquiv();
@@ -2434,7 +2441,7 @@ function generarPDF() {
     ? '<div class="p-resumen">' + tot.kcal + ' kcal · Proteína ' + tot.prot + ' g · Lípidos ' + tot.lip + ' g · Hidratos de carbono ' + tot.hco + ' g</div>'
     : '';
 
-  var html = '<div class="p-head"><div class="p-marca">COMER.SANO MX</div><div class="p-titulo">Plan de alimentación</div></div>'
+  var html = '<div class="p-head"><img class="p-logo" src="/marca/logo-horizontal.svg" alt="comer.sanomx"><div class="p-titulo">Plan de alimentación</div></div>'
     + '<div class="p-datos"><div><b>Paciente:</b> ' + esc(currentPx.nombre) + '</div><div><b>Fecha:</b> ' + mes + '</div></div>'
     + resumen
     + '<div class="p-sub">Equivalentes por tiempo de comida</div>'
@@ -2445,7 +2452,7 @@ function generarPDF() {
 
   var area = document.getElementById('printArea');
   area.innerHTML = html;
-  setTimeout(function(){ window.print(); }, 50);
+  imprimirListo();
 }
 
 
@@ -2885,14 +2892,16 @@ function imprimirNota(extensa) {
     + 'h1{font-size:15pt;color:#2D6A4F;margin:0}h3{font-size:11pt;color:#2D6A4F;text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px}'
     + '.cab{border-bottom:2px solid #2D6A4F;padding-bottom:10px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end}'
     + '.firma{margin-top:48px;text-align:center}</style></head><body>'
-    + '<div class="cab"><div><h1>COMER.SANO MX</h1><div>' + (extensa ? 'Informe nutricio para médico tratante' : 'Nota de nutrición clínica (ADIME)') + '</div></div><div style="text-align:right">' + f + '</div></div>'
+    + '<div class="cab"><div><img src="' + location.origin + '/marca/logo-horizontal.svg" alt="comer.sanomx" style="height:50px;display:block;margin-bottom:4px"><div>' + (extensa ? 'Informe nutricio para médico tratante' : 'Nota de nutrición clínica (ADIME)') + '</div></div><div style="text-align:right">' + f + '</div></div>'
     + '<p><b>Paciente:</b> ' + esc(currentPx.nombre) + (edad ? ' · ' + edad : '') + (currentPx.sexo ? ' · ' + esc(currentPx.sexo) : '') + '</p>'
     + cuerpo
     + '<div class="firma">______________________________<br>MNC Ana Ximena Alejo Muñoz Ledo<br>Ced prof: 12998799</div>'
     + '</body></html>');
   w.document.close();
   w.focus();
-  setTimeout(() => w.print(), 300);
+  const logo = w.document.querySelector('img');
+  if (logo && !logo.complete) logo.onload = logo.onerror = () => w.print();
+  else setTimeout(() => w.print(), 300);
 }
 
 // REQUERIMIENTOS SEGÚN GUÍAS (pestaña InBody)
@@ -3434,14 +3443,14 @@ function imprimirPa() {
     + edu.map(t => '<div class="pa-tema"><b>' + esc(t.titulo) + '</b><br>' + br(t.contenido) + '</div>').join('') + '</div>' : '';
 
   document.getElementById('printArea').innerHTML =
-    '<div class="p-head"><div class="p-marca">COMER.SANO MX</div><div class="p-titulo">Plan de alimentación</div></div>'
+    '<div class="p-head"><img class="p-logo" src="/marca/logo-horizontal.svg" alt="comer.sanomx"><div class="p-titulo">Plan de alimentación</div></div>'
     + '<div class="p-datos"><div><b>Paciente:</b> ' + esc(currentPx.nombre) + '</div><div><b>Fecha:</b> ' + esc(mes) + '</div></div>'
     + eqHtml + abrev + distHtml + menuHtml
     + '<div class="p-sub">Medidas</div><div>1 T = 240 ml · 1 C = 15 ml · 1 c = 5 ml</div>'
     + '<div class="p-importante">IMPORTANTE MEDIR LOS ALIMENTOS CON TAZAS MEDIDORAS</div>'
     + recHtml + espHtml + eduHtml
     + '<div class="p-firma">Elaborado por: MNC Ana Ximena Alejo Muñoz Ledo. Ced prof: 12998799</div>';
-  setTimeout(() => window.print(), 50);
+  imprimirListo();
 }
 
 // INIT
