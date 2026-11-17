@@ -3122,6 +3122,16 @@ async function renderAlimentacion(el) {
       + '<textarea id="paEduC_' + i + '" style="min-height:80px;font-size:12px">' + esc(t.contenido) + '</textarea></div>').join('')
     + '</div>'
 
+    + '<div class="card"><div class="card-title">Enviar a Mi Rueda</div>'
+    + '<div class="text-muted" style="font-size:12px;margin-bottom:10px">Crea el link para la app del paciente con sus porciones, el menú, la tabla de equivalentes, las recomendaciones, qué puede esperar y los temas marcados. Lo que el paciente registre se queda en su celular.</div>'
+    + '<div class="grid3">'
+    + '<div class="field"><label>Tu WhatsApp (con 52)</label><input type="tel" id="mrWa" placeholder="524421234567" value="' + esc(mrGet('nutri-wa')) + '"></div>'
+    + '<div class="field"><label>Vigencia (días)</label><input type="number" id="mrDias" min="0" value="30"></div>'
+    + '<div class="field"><label>Mostrar kcal al paciente</label><label style="display:flex;gap:6px;align-items:center;font-size:13px;text-transform:none;letter-spacing:0;margin-top:8px"><input type="checkbox" id="mrKcal" checked> Sí</label></div>'
+    + '</div>'
+    + '<button class="btn mt12" onclick="crearLinkRueda()">Crear link</button>'
+    + '<div id="mrOut"></div></div>'
+
     + '<div class="card"><div style="display:flex;flex-wrap:wrap;gap:10px">'
     + '<button class="btn btn-primary" id="btnGuardarPa" onclick="guardarPa()">Guardar plan</button>'
     + '<button class="btn" onclick="imprimirPa()">Imprimir / PDF</button></div></div>'
@@ -3273,6 +3283,57 @@ async function eliminarPa(id) {
   if (error) { showToast('Error: ' + error.message); return; }
   if (paActual && String(paActual.id) === String(id)) { paActual = paVacio(); paActual._px = currentPx.id; }
   showToast('Plan eliminado'); paRepintar();
+}
+
+// ENVIAR A MI RUEDA (app del paciente). Equivalentes del plan → subgrupos SMAE de Mi Rueda (mismas kcal)
+const MAPA_RUEDA = {verduras: 'ver', frutas: 'fru', cereales: 'csg', leguminosas: 'leg', aoa: 'a3', leche: 'l2', aceites: 'g1', azucares: 'z1'};
+function mrGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+
+async function comprimirB64(obj) {
+  const st = new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  const bytes = new Uint8Array(await new Response(st).arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function crearLinkRueda() {
+  leerPa();
+  const p = paActual, eq = paSmae.equivalentes || {};
+  const pl = {};
+  Object.keys(MAPA_RUEDA).forEach(k => { const n = Number(eq[k]); if (n > 0) pl[MAPA_RUEDA[k]] = Math.round(n * 2) / 2; });
+  const doc = {
+    f: p.fecha,
+    m: (paSmae.tiempos || []).filter(t => (p.menu[t] || []).length).map(t => [tLabel(t), p.menu[t].map(opTexto)]),
+    e: p.equivalentes.filter(x => x.alimentos.length).map(x => [(GRUPO_PRINT[x.grupo] || {nombre: x.grupo}).nombre, x.alimentos.map(a => [a.alimento, a.porcion, a.color || ''])]),
+    r: {f: p.recomendaciones.comer_fuera, g: p.recomendaciones.generales.map(x => [x.tema, x.puntos])},
+    s: {e: p.esperar.etapas.map(e => [e.plazo, e.texto, e.respaldo]), n: p.esperar.nota},
+    a: p.educacion.filter(t => t.elegido).map(t => [t.titulo, t.contenido])
+  };
+  const data = {v: 2, pl, k: document.getElementById('mrKcal').checked, doc};
+  const dias = parseInt(g('mrDias')) || 0;
+  if (dias > 0) { const e = new Date(); e.setDate(e.getDate() + dias); data.x = e.getFullYear() + '-' + String(e.getMonth() + 1).padStart(2, '0') + '-' + String(e.getDate()).padStart(2, '0'); }
+  if (currentPx.nombre) data.n = String(currentPx.nombre).trim().slice(0, 60);
+  const wa = g('mrWa').replace(/\D/g, '');
+  if (wa.length >= 10) { data.w = wa; try { localStorage.setItem('nutri-wa', wa); } catch (e) {} }
+  let link;
+  try { link = 'https://ruedaestilodevida.netlify.app/#q=' + await comprimirB64(data); }
+  catch (e) { showToast('Este navegador no puede crear el link. Usa Safari o Chrome actualizados.'); return; }
+  let tel = String(currentPx.telefono || '').replace(/\D/g, '');
+  if (tel.length === 10) tel = '52' + tel;
+  const msg = 'Hola' + (currentPx.nombre ? ' ' + String(currentPx.nombre).split(' ')[0] : '') + ', este es tu plan en Mi Rueda. Ábrelo desde tu celular: ' + link;
+  const waHref = 'https://wa.me/' + (tel.length >= 12 ? tel : '') + '?text=' + encodeURIComponent(msg);
+  window._mrLink = link;
+  document.getElementById('mrOut').innerHTML = '<textarea readonly style="min-height:70px;font-size:11px;margin-top:12px" onclick="this.select()">' + esc(link) + '</textarea>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">'
+    + '<button class="btn btn-sm" onclick="copiarLinkRueda()">Copiar link</button>'
+    + '<a class="btn btn-sm btn-primary" href="' + esc(waHref) + '" target="_blank" rel="noopener">' + (tel.length >= 12 ? 'Mandar por WhatsApp al paciente' : 'Mandar por WhatsApp') + '</a></div>'
+    + '<div class="text-muted" style="font-size:11px;margin-top:6px">Si cambias el plan, crea un link nuevo y mándalo otra vez.</div>';
+}
+
+async function copiarLinkRueda() {
+  try { await navigator.clipboard.writeText(window._mrLink); showToast('Link copiado'); }
+  catch (e) { prompt('Copia este link:', window._mrLink); }
 }
 
 function imprimirPa() {
