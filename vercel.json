@@ -4,7 +4,10 @@
       "maxDuration": 30
     },
     "api/nota.js": {
-      "maxDuration": 60
+      "maxDuration": 120
+    },
+    "api/plan.js": {
+      "maxDuration": 300
     }
   }
 }

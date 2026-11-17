@@ -500,6 +500,14 @@
   #printArea .p-abrev { margin-top: 8px; font-size: 9pt; color: #555; }
   #printArea .p-importante { margin-top: 14px; font-weight: bold; }
   #printArea .p-firma { margin-top: 18px; }
+  #printArea .pa-eq td { text-align: left; vertical-align: top; font-size: 9pt; padding: 3px 6px; }
+  #printArea .pa-menu { margin-top: 10px; table-layout: fixed; page-break-inside: avoid; }
+  #printArea .pa-menu td { text-align: left; vertical-align: top; font-size: 9pt; }
+  #printArea .pa-ley { padding: 1px 8px; margin-right: 8px; }
+  #printArea .pa-bloque { margin-top: 12px; page-break-inside: avoid; }
+  #printArea .pa-bloque ul { margin: 2px 0 8px 18px; padding: 0; }
+  #printArea .pa-ref { font-size: 8pt; color: #666; margin-top: 3px; }
+  #printArea .pa-tema { margin-bottom: 8px; page-break-inside: avoid; }
 
   @media (max-width: 768px) {
     .sidebar { display: none; }
@@ -741,6 +749,7 @@ function renderTabs() {
       <button class="tab-btn ${currentTab==='datos'?'active':''}" onclick="switchTab('datos')">Datos del paciente</button>
       <button class="tab-btn ${currentTab==='inbody'?'active':''}" onclick="switchTab('inbody')">InBody / Requerimientos</button>
       <button class="tab-btn ${currentTab==='smae'?'active':''}" onclick="switchTab('smae')">Plan SMAE</button>
+      <button class="tab-btn ${currentTab==='alimentacion'?'active':''}" onclick="switchTab('alimentacion')">Plan de alimentación</button>
       <button class="tab-btn ${currentTab==='labs'?'active':''}" onclick="switchTab('labs')">Laboratorios</button>
       <button class="tab-btn ${currentTab==='recetario'?'active':''}" onclick="switchTab('recetario')">Recetario</button>
       <button class="tab-btn ${currentTab==='seguimiento'?'active':''}" onclick="switchTab('seguimiento')">Seguimiento / Educación</button>
@@ -761,6 +770,7 @@ async function loadTab() {
   if (currentTab === 'datos') await renderDatos(el);
   else if (currentTab === 'inbody') await renderInBody(el);
   else if (currentTab === 'smae') await renderSMAE(el);
+  else if (currentTab === 'alimentacion') await renderAlimentacion(el);
   else if (currentTab === 'labs') await renderLabs(el);
   else if (currentTab === 'recetario') renderProxima(el, 'Recetario');
   else if (currentTab === 'seguimiento') renderProxima(el, 'Seguimiento / Educación');
@@ -1751,6 +1761,13 @@ async function renderInBody(el) {
   + '</div>'
   + '</div></div>'
 
+  + '<div style="margin-bottom:16px;padding:14px;border:1px solid var(--border);border-radius:var(--radius)">'
+  + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">'
+  + '<div><div style="font-size:13px;font-weight:500">Requerimientos según guías de práctica clínica</div>'
+  + '<div class="text-muted" style="font-size:11px">La IA busca la versión vigente de las guías que aplican al caso y cita cada recomendación.</div></div>'
+  + '<button class="btn btn-sm" id="btnGuias" onclick="revisarGuias()">✦ Revisar con guías</button></div>'
+  + '<div id="guiasBox" style="margin-top:10px"></div></div>'
+
   + '<div class="btn-row">'
   + '<button class="btn btn-primary" onclick="saveInBody()">Guardar medición</button>'
   + '</div></div>'
@@ -1758,6 +1775,8 @@ async function renderInBody(el) {
   + histHTML;
 
   // Variables de estado
+  window._ibGuias = d.guias || null;
+  pintarGuias();
   window._ibFactorAct = factActSel;
   window._ibFactorEstres = factEstSel;
   window._ibTalla = parseFloat(estaturaIni) || 0; // cm
@@ -1913,6 +1932,7 @@ async function saveInBody() {
     get_calculado: window._ibGET || null,
     notas: g('ibNotas'),
   }, segs);
+  if (window._ibGuias) payload.guias = window._ibGuias;
 
   const { data: existe } = await sb.from('inbody_registros').select('id')
     .eq('paciente_id', currentPx.id).eq('fecha', fecha).limit(1);
@@ -2629,11 +2649,15 @@ async function contextoPaciente() {
   const edad = currentPx.fecha_nac ? Math.floor((new Date() - new Date(currentPx.fecha_nac)) / 31557600000) : null;
   const hc = limpiarObj(hcRes.data);
   if (hc.medicamentos) { try { hc.medicamentos = JSON.parse(hc.medicamentos); } catch (e) {} }
+  const inbody = (ibRes.data || []).map(r => limpiarObj(r));
+  const guias = inbody.length && inbody[0].guias ? inbody[0].guias : null;
+  inbody.forEach(r => { delete r.guias; });
   return {
     fecha_consulta: hoyISO(),
     edad, sexo: currentPx.sexo || '', motivo_consulta: currentPx.motivo_consulta || '',
     historia_clinica: hc,
-    inbody: (ibRes.data || []).map(r => limpiarObj(r)),
+    inbody,
+    requerimientos_guias: guias,
     laboratorios: (labRes.data || []).map(r => ({fecha: r.fecha, resultados: r.resultados})),
     plan_smae: (planRes.data || []).map(r => ({fecha: r.fecha, equivalentes: r.equivalentes, tiempos: r.tiempos}))[0] || null
   };
@@ -2869,6 +2893,453 @@ function imprimirNota(extensa) {
   w.document.close();
   w.focus();
   setTimeout(() => w.print(), 300);
+}
+
+// REQUERIMIENTOS SEGÚN GUÍAS (pestaña InBody)
+async function revisarGuias() {
+  const btn = document.getElementById('btnGuias');
+  const box = document.getElementById('guiasBox');
+  if (window._ibGuias && !confirm('Esto reemplaza la revisión anterior. ¿Continuar?')) return;
+  btn.disabled = true;
+  box.innerHTML = '<div style="padding:10px;background:var(--accent-light);border-radius:var(--radius);font-size:12px;color:var(--accent-text)">✦ Buscando las guías vigentes y revisando el caso… (puede tardar 1-3 minutos)</div>';
+  try {
+    const ctx = await contextoPaciente();
+    ctx.configuracion_actual = {
+      peso_kg: parseFloat(g('ibPeso')) || null, get_kcal: window._ibGET || null,
+      factor_actividad: window._ibFactorAct, factor_estres: window._ibFactorEstres,
+      proteina_gkg: parseFloat(g('protGkg')) || null, lipidos_pct: parseFloat(g('lipPct')) || null
+    };
+    const r = await llamarApi('/api/plan', {modo: 'guias', contexto: ctx});
+    r.fecha = hoyISO();
+    window._ibGuias = r;
+    pintarGuias();
+    showToast('Revisión lista. Guarda la medición para conservarla.');
+  } catch (e) {
+    showToast('Error: ' + (e.message || e));
+    pintarGuias();
+  } finally { btn.disabled = false; }
+}
+
+function pintarGuias() {
+  const box = document.getElementById('guiasBox');
+  if (!box) return;
+  const r = window._ibGuias;
+  if (!r) { box.innerHTML = ''; return; }
+  const filas = (r.recomendaciones || []).map(x => '<tr>'
+    + '<td style="padding:6px;vertical-align:top;font-weight:500">' + esc(x.parametro) + '</td>'
+    + '<td style="padding:6px;vertical-align:top">' + esc(x.recomendacion) + (x.aplicado ? '<div style="color:var(--accent-text);margin-top:3px">→ ' + esc(x.aplicado) + '</div>' : '') + '</td>'
+    + '<td style="padding:6px;vertical-align:top;font-size:11px">' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(x.guia) + ' ' + esc(x.anio) + '</a>' : esc(x.guia) + ' ' + esc(x.anio))
+    + (x.evidencia ? '<div class="text-muted">' + esc(x.evidencia) + '</div>' : '') + '</td></tr>').join('');
+  const alertas = (r.alertas || []).filter(Boolean).map(a => '<li>' + esc(a) + '</li>').join('');
+  const aplicable = r.proteina_gkg || r.lipidos_pct;
+  box.innerHTML = '<div style="font-size:12px;margin-bottom:8px">' + esc(r.resumen || '') + (r.fecha ? ' <span class="text-muted">(revisado ' + esc(r.fecha) + ')</span>' : '') + '</div>'
+    + (alertas ? '<ul style="margin:0 0 8px 18px;font-size:12px;color:var(--danger)">' + alertas + '</ul>' : '')
+    + '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;font-family:sans-serif">'
+    + '<thead><tr style="text-align:left;color:var(--text2)"><th style="padding:6px">Parámetro</th><th style="padding:6px">Recomendación y aplicación</th><th style="padding:6px">Guía</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
+    + (aplicable ? '<button class="btn btn-sm" style="margin-top:10px" onclick="aplicarGuias()">Usar proteína '
+      + (r.proteina_gkg ? r.proteina_gkg + ' g/kg' : '') + (r.proteina_gkg && r.lipidos_pct ? ' y ' : '') + (r.lipidos_pct ? 'lípidos ' + r.lipidos_pct + '%' : '') + '</button>' : '')
+    + '<div class="text-muted" style="font-size:11px;margin-top:8px">Verifica cada cita con su enlace antes de usarla. Tú decides la prescripción final.</div>';
+}
+
+function ponerOpcion(id, v, sufijo) {
+  const sel = document.getElementById(id);
+  if (!sel || !v) return;
+  if (!Array.from(sel.options).some(o => parseFloat(o.value) === v)) {
+    const o = document.createElement('option'); o.value = v; o.textContent = v + sufijo; sel.appendChild(o);
+  }
+  sel.value = Array.from(sel.options).find(o => parseFloat(o.value) === v).value;
+}
+
+function aplicarGuias() {
+  const r = window._ibGuias || {};
+  ponerOpcion('protGkg', r.proteina_gkg, ' g/kg');
+  ponerOpcion('lipPct', r.lipidos_pct, '%');
+  recalcMacros();
+  showToast('Aplicado. Revisa y guarda la medición.');
+}
+
+async function llamarApi(url, cuerpo) {
+  const res = await fetch(url, {method: 'POST', headers: await apiHeaders(), body: JSON.stringify(cuerpo)});
+  let data = {};
+  try { data = await res.json(); } catch (e) { throw new Error(res.status === 504 ? 'La IA tardó demasiado. Inténtalo de nuevo.' : 'Error del servidor'); }
+  if (!res.ok) throw new Error(data.error || 'Error del servidor');
+  return data.result;
+}
+
+// TAB PLAN DE ALIMENTACIÓN
+const PROTOCOLOS_UI = [
+  {id: 'fodmap', nombre: 'Bajo en FODMAP', ph: 'Ej. fase de eliminación, semana 1'},
+  {id: 'renal', nombre: 'Renal', ph: 'Límites: K, P, Na, proteína g/kg, líquidos'},
+  {id: 'bariatrico', nombre: 'Bariátrico', ph: 'Cirugía y fase: ej. manga, purés, 3a semana'},
+  {id: 'dg', nombre: 'Diabetes gestacional', ph: 'Ej. metas de glucosa, insulina'},
+  {id: 'embarazo', nombre: 'Embarazo', ph: 'Ej. semanas de gestación, suplementos'}
+];
+const COLOR_FODMAP = {libre: '#C6EFCE', porcion: '#FFF2A0', evitar: '#BDD7EE'};
+const ETQ_COLOR = {libre: 'libre', porcion: 'porción', evitar: 'evitar'};
+
+let paActual = null;
+let paSmae = null;
+
+function paVacio() {
+  return {fecha: hoyISO(), plan_smae_id: null, ajustes: {protocolos: {}, detalles: {}, cocina: 'basico', frias: false, notas: '', n: 5},
+    menu: {}, equivalentes: [], recomendaciones: {comer_fuera: [], generales: []}, esperar: {etapas: [], nota: ''}, educacion: []};
+}
+
+function paPorciones(t) {
+  const p = {};
+  const dist = (paSmae && paSmae.distribucion) || {};
+  GRUPOS_SMAE.forEach(gr => { const v = dist[gr.id + '_' + t.replace(/ /g, '_')]; if (v) p[gr.id] = v; });
+  return p;
+}
+function paPorcionesTxt(p) {
+  return Object.keys(p).map(k => fmtEq(p[k]) + ' ' + (GRUPO_PRINT[k] ? GRUPO_PRINT[k].nombre : k)).join(' · ') || 'Sin porciones';
+}
+
+function paCuadra(op, por) {
+  if (op.editado) return {ok: null, txt: 'Editada a mano: revisa que cuadre'};
+  const suma = {};
+  (op.ingredientes || []).forEach(i => { if (i.grupo !== 'libre') suma[i.grupo] = (suma[i.grupo] || 0) + (Number(i.porciones) || 0); });
+  const malos = [];
+  new Set(Object.keys(suma).concat(Object.keys(por))).forEach(k => {
+    const s = Math.round((suma[k] || 0) * 100) / 100, m = por[k] || 0;
+    if (k === 'verduras' ? s < m : Math.abs(s - m) > 0.01) malos.push((GRUPO_PRINT[k] ? GRUPO_PRINT[k].nombre : k) + ' ' + (fmtEq(s) || '0') + ' de ' + (fmtEq(m) || '0'));
+  });
+  return malos.length ? {ok: false, txt: 'No cuadra: ' + malos.join(', ')} : {ok: true, txt: '✓ Cuadra con la distribución'};
+}
+
+function opTexto(op) {
+  if (op.texto != null) return op.texto;
+  return op.nombre + ':\n' + (op.ingredientes || []).map(i => '-' + i.texto).join('\n') + '\n\n' + (op.preparacion || '');
+}
+
+async function contextoPlan() {
+  const ctx = await contextoPaciente();
+  const { data: notas } = await sb.from('notas_pes').select('fecha, pes').eq('paciente_id', currentPx.id).order('fecha', {ascending: false}).limit(1);
+  if (notas && notas[0]) ctx.diagnostico_pes = notas[0].pes;
+  if (paSmae) ctx.plan_smae = {fecha: paSmae.fecha, equivalentes: paSmae.equivalentes, distribucion: paSmae.distribucion, tiempos: paSmae.tiempos};
+  return ctx;
+}
+
+async function renderAlimentacion(el) {
+  const [smaeRes, paRes] = await Promise.all([
+    sb.from('planes_smae').select('*').eq('paciente_id', currentPx.id).order('fecha', {ascending: false}).limit(1),
+    sb.from('planes_alimentacion').select('*').eq('paciente_id', currentPx.id).order('fecha', {ascending: false})
+  ]);
+  if (paRes.error) {
+    el.innerHTML = '<div class="empty-state"><h3>Falta crear la tabla de planes</h3><p>Corre en Supabase el SQL del plan de alimentación y vuelve a abrir esta pestaña.</p></div>';
+    return;
+  }
+  paSmae = (smaeRes.data || [])[0] || null;
+  window._paHist = paRes.data || [];
+  if (!paSmae) {
+    el.innerHTML = '<div class="empty-state"><h3>Primero guarda un Plan SMAE</h3><p>El menú se arma con los equivalentes y el reparto por tiempos del último Plan SMAE guardado.</p></div>';
+    return;
+  }
+  if (!paActual || paActual._px !== currentPx.id) { paActual = paVacio(); paActual._px = currentPx.id; }
+  paActual.plan_smae_id = paActual.plan_smae_id || String(paSmae.id);
+  const a = paActual.ajustes;
+  const tot = smaeCalcTotales(paSmae.equivalentes || {});
+  const tiempos = paSmae.tiempos || [];
+  const hist = window._paHist.map(n => {
+    const f = new Date(n.fecha + 'T12:00').toLocaleDateString('es-MX', {day: 'numeric', month: 'short', year: 'numeric'});
+    const prot = PROTOCOLOS_UI.filter(p => n.ajustes && n.ajustes.protocolos && n.ajustes.protocolos[p.id]).map(p => p.nombre).join(', ');
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">'
+      + '<div style="flex:1"><b>' + f + '</b><div class="text-muted" style="font-size:12px">' + esc(prot || 'Sin protocolo') + '</div></div>'
+      + '<button class="btn btn-sm" onclick="abrirPa(\'' + n.id + '\')">Abrir</button>'
+      + '<button class="btn btn-sm" style="color:var(--danger)" onclick="eliminarPa(\'' + n.id + '\')">Eliminar</button></div>';
+  }).join('');
+
+  el.innerHTML = '<div class="card"><div class="card-title">' + (paActual.id ? 'Editando plan guardado' : 'Nuevo plan de alimentación') + '</div>'
+    + '<div style="font-size:13px;margin-bottom:12px">Basado en el Plan SMAE del <b>' + esc(paSmae.fecha) + '</b>: ' + tot.kcal + ' kcal · P ' + tot.prot + ' g · L ' + tot.lip + ' g · HC ' + tot.hco + ' g · ' + tiempos.length + ' tiempos</div>'
+    + '<div class="field"><label>Protocolos</label>'
+    + PROTOCOLOS_UI.map(p => '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0">'
+      + '<label style="display:flex;gap:6px;align-items:center;min-width:190px;font-size:13px;text-transform:none;letter-spacing:0"><input type="checkbox" id="paProt_' + p.id + '"' + (a.protocolos[p.id] ? ' checked' : '') + '> ' + p.nombre + '</label>'
+      + '<input type="text" id="paDet_' + p.id + '" placeholder="' + esc(p.ph) + '" style="flex:1;min-width:200px" value="' + esc(a.detalles[p.id] || '') + '"></div>').join('')
+    + '</div>'
+    + '<div class="grid3 mt12">'
+    + '<div class="field"><label>Nivel de cocina</label><select id="paCocina">'
+    + [['poco', 'Casi no cocina'], ['basico', 'Cocina lo básico'], ['gusta', 'Le gusta cocinar']].map(o => '<option value="' + o[0] + '"' + (a.cocina === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('')
+    + '</select></div>'
+    + '<div class="field"><label>Opciones por tiempo</label><input type="number" id="paN" min="1" max="7" value="' + (a.n || 5) + '"></div>'
+    + '<div class="field"><label>Preparaciones frías</label><label style="display:flex;gap:6px;align-items:center;font-size:13px;text-transform:none;letter-spacing:0;margin-top:8px"><input type="checkbox" id="paFrias"' + (a.frias ? ' checked' : '') + '> Dejar todo listo desde antes</label></div>'
+    + '</div>'
+    + '<div class="field mt12"><label>Indicaciones extra</label><textarea id="paNotas" style="min-height:50px" placeholder="Ej. no come camarón, come en el comedor de la empresa, turno nocturno">' + esc(a.notas || '') + '</textarea></div>'
+    + '<div class="text-muted" style="font-size:12px;margin-top:8px">También usa la historia clínica (disgustos, lo que le cae mal, quién cocina, dónde come), el último InBody con su revisión de guías, laboratorios y PES. No se envía el nombre.</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px">'
+    + '<button class="btn btn-primary" id="btnPaTodo" onclick="paGenerarTodo()">✦ Generar plan completo</button>'
+    + (paActual.id ? '<button class="btn" onclick="nuevoPa()">Nuevo plan</button>' : '') + '</div>'
+    + '<div id="paStatus" style="display:none;margin-top:12px;padding:12px;background:var(--accent-light);border-radius:var(--radius);font-size:13px;font-family:sans-serif;color:var(--accent-text)"></div>'
+    + '</div>'
+
+    + '<div class="card"><div class="card-title">Menú</div>'
+    + tiempos.map((t, ti) => {
+      const por = paPorciones(t);
+      const ops = paActual.menu[t] || [];
+      return '<div style="margin-bottom:18px"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:#DDEBF7;color:#1A1714;padding:8px 12px;border-radius:var(--radius)">'
+        + '<div><b>' + esc(tLabel(t)) + '</b> <span style="font-size:12px">' + esc(paPorcionesTxt(por)) + '</span></div>'
+        + '<button class="btn btn-sm" id="btnMenu_' + ti + '" onclick="paGenerarMenu(' + ti + ')">' + (ops.length ? '↻ Otras opciones' : '✦ Generar') + '</button></div>'
+        + (ops.length ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:10px">'
+          + ops.map((op, oi) => { const c = paCuadra(op, por);
+            return '<div><textarea style="min-height:190px;font-size:12px" oninput="paEditarOp(' + ti + ',' + oi + ',this.value)">' + esc(opTexto(op)) + '</textarea>'
+              + '<div style="display:flex;justify-content:space-between;gap:6px;font-size:11px;margin-top:3px"><span style="color:' + (c.ok === false ? 'var(--danger)' : c.ok ? 'var(--accent-text)' : 'var(--text3)') + '">' + esc(c.txt) + '</span>'
+              + '<a href="#" style="color:var(--text3)" onclick="paQuitarOp(' + ti + ',' + oi + ');return false">Quitar</a></div></div>'; }).join('')
+          + '</div>' : '<div class="text-muted" style="font-size:12px;margin-top:8px">Sin opciones todavía.</div>')
+        + '</div>';
+    }).join('')
+    + '</div>'
+
+    + '<div class="card"><div class="card-title">Tabla de equivalentes y recomendaciones</div>'
+    + '<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-sm" id="btnEquiv" onclick="paGenerarEquiv()">' + (paActual.equivalentes.length ? '↻ Rehacer' : '✦ Generar') + '</button></div>'
+    + (paActual.equivalentes.length ? '<div class="text-muted" style="font-size:11px;margin-bottom:6px">Un alimento por renglón: "alimento — porción". En bajo FODMAP agrega al final [libre], [porción] o [evitar].</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">'
+      + paActual.equivalentes.map((gq, gi) => '<div class="field"><label style="background:' + (GRUPO_PRINT[gq.grupo] || {}).color + ';padding:4px 6px;border-radius:4px;color:#1A1714">' + esc((GRUPO_PRINT[gq.grupo] || {nombre: gq.grupo}).nombre) + '</label>'
+        + '<textarea id="paEq_' + gi + '" style="min-height:180px;font-size:12px">' + esc(gq.alimentos.map(x => x.alimento + ' — ' + x.porcion + (x.color ? ' [' + ETQ_COLOR[x.color] + ']' : '')).join('\n')) + '</textarea></div>').join('')
+      + '</div>'
+      + '<div class="field mt12"><label>Si comes fuera</label><textarea id="paFuera" style="min-height:80px">' + esc(paActual.recomendaciones.comer_fuera.join('\n')) + '</textarea></div>'
+      + '<div class="field mt12"><label>Recomendaciones generales</label><div class="text-muted" style="font-size:11px">Tema en un renglón y sus puntos debajo con "-".</div><textarea id="paGen" style="min-height:140px">'
+      + esc(paActual.recomendaciones.generales.map(x => x.tema + '\n' + x.puntos.map(p => '-' + p).join('\n')).join('\n\n')) + '</textarea></div>'
+      : '<div class="text-muted" style="font-size:12px">Sin tabla todavía.</div>')
+    + '</div>'
+
+    + '<div class="card"><div class="card-title">Qué puedes esperar</div>'
+    + '<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-sm" id="btnEsperar" onclick="paGenerarEsperar()">' + (paActual.esperar.etapas.length ? '↻ Rehacer' : '✦ Generar') + '</button></div>'
+    + (paActual.esperar.etapas.length ? paActual.esperar.etapas.map((e, ei) => '<div class="grid2" style="grid-template-columns:180px 1fr;margin-bottom:8px">'
+        + '<input type="text" id="paEspP_' + ei + '" value="' + esc(e.plazo) + '">'
+        + '<div><textarea id="paEspT_' + ei + '" style="min-height:60px">' + esc(e.texto) + '</textarea>'
+        + '<input type="text" id="paEspR_' + ei + '" placeholder="Respaldo (guía y año)" style="font-size:11px;margin-top:4px" value="' + esc(e.respaldo) + '"></div></div>').join('')
+      + '<div class="field"><label>Frase final</label><input type="text" id="paEspN" value="' + esc(paActual.esperar.nota) + '"></div>'
+      : '<div class="text-muted" style="font-size:12px">Sin texto todavía.</div>')
+    + '</div>'
+
+    + '<div class="card"><div class="card-title">Educación para este paciente</div>'
+    + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px"><div class="text-muted" style="font-size:12px">Marca los temas que entran en este plan. Los demás quedan para otra consulta.</div>'
+    + '<button class="btn btn-sm" id="btnEdu" onclick="paGenerarEdu()">' + (paActual.educacion.length ? '↻ Otros temas' : '✦ Proponer temas') + '</button></div>'
+    + paActual.educacion.map((t, i) => '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px">'
+      + '<div style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="paEduS_' + i + '"' + (t.elegido ? ' checked' : '') + '>'
+      + '<input type="text" id="paEduT_' + i + '" value="' + esc(t.titulo) + '" style="flex:1;font-weight:500">'
+      + '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--surface2)">' + ({hoy: 'Para hoy', siguiente: 'Siguiente consulta', despues: 'Más adelante'}[t.prioridad] || '') + '</span></div>'
+      + '<div class="text-muted" style="font-size:11px;margin:4px 0 6px 24px">' + esc(t.por_que) + '</div>'
+      + '<textarea id="paEduC_' + i + '" style="min-height:80px;font-size:12px">' + esc(t.contenido) + '</textarea></div>').join('')
+    + '</div>'
+
+    + '<div class="card"><div style="display:flex;flex-wrap:wrap;gap:10px">'
+    + '<button class="btn btn-primary" id="btnGuardarPa" onclick="guardarPa()">Guardar plan</button>'
+    + '<button class="btn" onclick="imprimirPa()">Imprimir / PDF</button></div></div>'
+
+    + '<div class="card"><div class="card-title">Planes anteriores</div>' + (hist || '<div class="text-muted">Aún no hay planes guardados.</div>') + '</div>';
+}
+
+// Lee lo escrito en pantalla hacia paActual
+function leerPa() {
+  const p = paActual, a = p.ajustes;
+  if (!document.getElementById('paCocina')) return p;
+  PROTOCOLOS_UI.forEach(x => { a.protocolos[x.id] = document.getElementById('paProt_' + x.id).checked; a.detalles[x.id] = g('paDet_' + x.id).trim(); });
+  a.cocina = g('paCocina'); a.n = Math.min(7, Math.max(1, parseInt(g('paN')) || 5)); a.frias = document.getElementById('paFrias').checked; a.notas = g('paNotas').trim();
+  p.equivalentes.forEach((gq, gi) => {
+    const el = document.getElementById('paEq_' + gi); if (!el) return;
+    gq.alimentos = el.value.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      let color = '';
+      const m = l.match(/\[(libre|porci[oó]n|evitar)\]\s*$/i);
+      if (m) { color = /libre/i.test(m[1]) ? 'libre' : /evitar/i.test(m[1]) ? 'evitar' : 'porcion'; l = l.slice(0, m.index).trim(); }
+      const k = l.split(/\s+[—–-]\s+/);
+      return {alimento: k[0], porcion: k.slice(1).join(' — '), color};
+    });
+  });
+  if (document.getElementById('paFuera')) p.recomendaciones.comer_fuera = g('paFuera').split('\n').map(l => l.replace(/^-\s*/, '').trim()).filter(Boolean);
+  if (document.getElementById('paGen')) {
+    const gen = [];
+    g('paGen').split('\n').forEach(l => {
+      l = l.trim(); if (!l) return;
+      if (/^-/.test(l)) { if (!gen.length) gen.push({tema: '', puntos: []}); gen[gen.length - 1].puntos.push(l.replace(/^-\s*/, '')); }
+      else gen.push({tema: l, puntos: []});
+    });
+    p.recomendaciones.generales = gen;
+  }
+  p.esperar.etapas.forEach((e, ei) => { e.plazo = g('paEspP_' + ei); e.texto = g('paEspT_' + ei); e.respaldo = g('paEspR_' + ei); });
+  if (document.getElementById('paEspN')) p.esperar.nota = g('paEspN');
+  p.educacion.forEach((t, i) => { t.elegido = document.getElementById('paEduS_' + i).checked; t.titulo = g('paEduT_' + i); t.contenido = g('paEduC_' + i); });
+  return p;
+}
+
+function paEditarOp(ti, oi, v) { const t = paSmae.tiempos[ti]; const op = paActual.menu[t][oi]; op.texto = v; op.editado = true; }
+function paQuitarOp(ti, oi) { leerPa(); paActual.menu[paSmae.tiempos[ti]].splice(oi, 1); renderAlimentacion(document.getElementById('tabContent')); }
+function paStatus(t) { const s = document.getElementById('paStatus'); if (!s) return; s.style.display = t ? 'block' : 'none'; s.textContent = t || ''; }
+function paRepintar() { renderAlimentacion(document.getElementById('tabContent')); }
+
+async function paPedir(modo, extra, ctx) {
+  return llamarApi('/api/plan', Object.assign({modo, contexto: ctx || await contextoPlan(), ajustes: paActual.ajustes}, extra || {}));
+}
+
+async function paMenuTiempo(ti, ctx) {
+  const t = paSmae.tiempos[ti];
+  const r = await paPedir('menu', {tiempo: tLabel(t), porciones: paPorciones(t), n: paActual.ajustes.n, otros: paSmae.tiempos.filter(x => x !== t).map(tLabel)}, ctx);
+  paActual.menu[t] = r.opciones || [];
+}
+
+async function paConBoton(id, txt, fn) {
+  leerPa();
+  const b = document.getElementById(id); if (b) { b.disabled = true; b.textContent = txt; }
+  try { await fn(); paRepintar(); }
+  catch (e) { showToast('Error: ' + (e.message || e)); paRepintar(); }
+}
+
+function paGenerarMenu(ti) {
+  const t = paSmae.tiempos[ti];
+  if ((paActual.menu[t] || []).some(o => o.editado) && !confirm('Hay recetas editadas a mano en este tiempo. ¿Reemplazarlas?')) return;
+  paConBoton('btnMenu_' + ti, '✦ Generando…', () => paMenuTiempo(ti));
+}
+function paGenerarEquiv() {
+  paConBoton('btnEquiv', '✦ Generando…', async () => {
+    const r = await paPedir('equivalentes');
+    paActual.equivalentes = (r.equivalentes || []).filter(x => (paSmae.equivalentes || {})[x.grupo] > 0 || !paSmae.equivalentes);
+    paActual.recomendaciones = {comer_fuera: r.comer_fuera || [], generales: r.generales || []};
+  });
+}
+function paGenerarEsperar() {
+  paConBoton('btnEsperar', '✦ Generando…', async () => { paActual.esperar = await paPedir('esperar'); });
+}
+function temasVistos() {
+  const v = [];
+  (window._paHist || []).forEach(n => { if (String(n.id) !== String(paActual.id)) (n.educacion || []).forEach(t => { if (t.elegido) v.push(t.titulo); }); });
+  return v;
+}
+function paGenerarEdu() {
+  paConBoton('btnEdu', '✦ Proponiendo…', async () => {
+    paActual.ajustes.temas_vistos = temasVistos();
+    const r = await paPedir('educacion');
+    const elegidos = paActual.educacion.filter(t => t.elegido);
+    paActual.educacion = elegidos.concat((r.temas || []).map(t => Object.assign(t, {elegido: false})));
+  });
+}
+
+async function paGenerarTodo() {
+  leerPa();
+  const hay = Object.keys(paActual.menu).length || paActual.equivalentes.length || paActual.esperar.etapas.length || paActual.educacion.length;
+  if (hay && !confirm('Esto reemplaza todo lo que hay en el plan. ¿Continuar?')) return;
+  const btn = document.getElementById('btnPaTodo'); btn.disabled = true;
+  const tiempos = paSmae.tiempos || [];
+  let listos = 0; const total = tiempos.length + 3; const errores = [];
+  const avance = () => paStatus('✦ Generando el plan… ' + listos + ' de ' + total + ' partes listas (puede tardar 1-2 minutos)');
+  avance();
+  try {
+    const ctx = await contextoPlan();
+    paActual.ajustes.temas_vistos = temasVistos();
+    const tarea = (nombre, fn) => fn().catch(e => errores.push(nombre + ': ' + (e.message || e))).finally(() => { listos++; avance(); });
+    await Promise.all(tiempos.map((t, ti) => tarea(tLabel(t), () => paMenuTiempo(ti, ctx)))
+      .concat([
+        tarea('Equivalentes', async () => { const r = await paPedir('equivalentes', null, ctx);
+          paActual.equivalentes = (r.equivalentes || []).filter(x => (paSmae.equivalentes || {})[x.grupo] > 0);
+          paActual.recomendaciones = {comer_fuera: r.comer_fuera || [], generales: r.generales || []}; }),
+        tarea('Qué puedes esperar', async () => { paActual.esperar = await paPedir('esperar', null, ctx); }),
+        tarea('Educación', async () => { const r = await paPedir('educacion', null, ctx); paActual.educacion = (r.temas || []).map(t => Object.assign(t, {elegido: t.prioridad === 'hoy'})); })
+      ]));
+  } catch (e) { errores.push(e.message || String(e)); }
+  paRepintar();
+  if (errores.length) showToast('Algunas partes fallaron; usa su botón para reintentar. ' + errores[0]);
+  else showToast('Plan listo. Revísalo antes de guardar.');
+}
+
+async function guardarPa() {
+  leerPa();
+  const btn = document.getElementById('btnGuardarPa'); btn.disabled = true;
+  const p = paActual;
+  const fila = {paciente_id: currentPx.id, plan_smae_id: p.plan_smae_id, fecha: p.fecha, ajustes: p.ajustes, menu: p.menu,
+    equivalentes: p.equivalentes, recomendaciones: p.recomendaciones, esperar: p.esperar, educacion: p.educacion};
+  const res = p.id ? await sb.from('planes_alimentacion').update(fila).eq('id', p.id).select().single()
+                   : await sb.from('planes_alimentacion').insert(fila).select().single();
+  btn.disabled = false;
+  if (res.error) { showToast('Error al guardar: ' + res.error.message); return; }
+  p.id = res.data.id;
+  showToast('Plan guardado ✓');
+  paRepintar();
+}
+
+function nuevoPa() { paActual = paVacio(); paActual._px = currentPx.id; paRepintar(); }
+
+function abrirPa(id) {
+  const n = (window._paHist || []).find(x => String(x.id) === String(id));
+  if (!n) return;
+  const v = paVacio();
+  paActual = {id: n.id, _px: currentPx.id, fecha: n.fecha, plan_smae_id: n.plan_smae_id, ajustes: Object.assign(v.ajustes, n.ajustes || {}),
+    menu: n.menu || {}, equivalentes: n.equivalentes || [], recomendaciones: n.recomendaciones || v.recomendaciones,
+    esperar: n.esperar || v.esperar, educacion: n.educacion || []};
+  if (String(n.plan_smae_id) !== String(paSmae.id)) showToast('Ojo: este plan se hizo con un Plan SMAE anterior.');
+  paRepintar(); window.scrollTo(0, 0);
+}
+
+async function eliminarPa(id) {
+  if (!confirm('¿Eliminar este plan? No se puede deshacer.')) return;
+  const { error } = await sb.from('planes_alimentacion').delete().eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return; }
+  if (paActual && String(paActual.id) === String(id)) { paActual = paVacio(); paActual._px = currentPx.id; }
+  showToast('Plan eliminado'); paRepintar();
+}
+
+function imprimirPa() {
+  leerPa();
+  const p = paActual;
+  const tiempos = paSmae.tiempos || [];
+  const eqSmae = paSmae.equivalentes || {};
+  const grupos = GRUPOS_SMAE.filter(gr => (eqSmae[gr.id] || 0) > 0);
+  const mes = new Date(p.fecha + 'T12:00').toLocaleDateString('es-MX', {month: 'long', year: 'numeric'});
+  const br = s => esc(s).replace(/\n/g, '<br>');
+  const fodmap = p.ajustes.protocolos.fodmap;
+
+  const eqCols = p.equivalentes.filter(x => x.alimentos.length);
+  const maxF = Math.max(0, ...eqCols.map(x => x.alimentos.length));
+  let eqHtml = '';
+  if (eqCols.length) {
+    eqHtml = '<div class="p-sub">Tabla de equivalentes</div><table class="p-tabla pa-eq"><thead><tr>'
+      + eqCols.map(x => '<th style="background:' + (GRUPO_PRINT[x.grupo] || {}).color + '">' + esc((GRUPO_PRINT[x.grupo] || {nombre: x.grupo}).nombre) + '</th>').join('') + '</tr></thead><tbody>';
+    for (let i = 0; i < maxF; i++) {
+      eqHtml += '<tr>' + eqCols.map(x => { const a = x.alimentos[i];
+        return a ? '<td' + (a.color ? ' style="background:' + COLOR_FODMAP[a.color] + '"' : '') + '>' + esc(a.alimento) + ' <b>' + esc(a.porcion) + '</b></td>' : '<td></td>'; }).join('') + '</tr>';
+    }
+    eqHtml += '</tbody></table>'
+      + (fodmap ? '<div class="p-abrev"><span class="pa-ley" style="background:#C6EFCE">Libre</span> <span class="pa-ley" style="background:#FFF2A0">Solo en la porción indicada</span> <span class="pa-ley" style="background:#BDD7EE">Evitar por ahora</span></div>' : '');
+  }
+  const abrev = '<div class="p-abrev">c = cucharadita · C = cucharada · T = taza · Pza = pieza</div>';
+
+  const dist = paSmae.distribucion || {};
+  const distHtml = '<div class="p-sub">Distribución por tiempo de comida</div><table class="p-tabla"><thead><tr><th class="p-tiempo">Tiempo de comida</th>'
+    + grupos.map(gr => '<th style="background:' + GRUPO_PRINT[gr.id].color + '">' + GRUPO_PRINT[gr.id].nombre + '</th>').join('') + '</tr></thead><tbody>'
+    + tiempos.map(t => '<tr><td class="p-tiempo">' + esc(tLabel(t)) + '</td>' + grupos.map(gr => '<td>' + fmtEq(dist[gr.id + '_' + t.replace(/ /g, '_')]) + '</td>').join('') + '</tr>').join('')
+    + '</tbody></table>';
+
+  const celda = op => { const tx = opTexto(op); const i = tx.indexOf('\n');
+    return '<b>' + esc(i < 0 ? tx : tx.slice(0, i)) + '</b>' + (i < 0 ? '' : '<br>' + br(tx.slice(i + 1))); };
+  const menuHtml = tiempos.filter(t => (p.menu[t] || []).length).map(t => {
+    const ops = p.menu[t];
+    const cuerpo = /colaci/i.test(t)
+      ? '<tr><td colspan="' + ops.length + '">' + ops.map(op => { const tx = opTexto(op).split('\n').filter(Boolean);
+          return '<b>' + esc(tx[0]) + '</b> ' + esc(tx.slice(1).filter(l => /^-/.test(l)).map(l => l.slice(1)).join(', ')); }).join(' <b>o</b> ') + '</td></tr>'
+      : '<tr>' + ops.map(op => '<td>' + celda(op) + '</td>').join('') + '</tr>';
+    return '<table class="p-tabla pa-menu"><tr><th colspan="' + ops.length + '" style="background:#DDEBF7">' + esc(tLabel(t)) + '</th></tr>' + cuerpo + '</table>';
+  }).join('');
+
+  const r = p.recomendaciones;
+  const recHtml = (r.comer_fuera.length || r.generales.length) ? '<div class="pa-bloque"><div class="p-sub">Recomendaciones</div>'
+    + (r.comer_fuera.length ? '<b>Si comes fuera</b><ul>' + r.comer_fuera.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '')
+    + r.generales.map(x => (x.tema ? '<b>' + esc(x.tema) + '</b>' : '') + '<ul>' + x.puntos.map(pt => '<li>' + esc(pt) + '</li>').join('') + '</ul>').join('') + '</div>' : '';
+
+  const espHtml = p.esperar.etapas.length ? '<div class="pa-bloque"><div class="p-sub">Qué puedes esperar</div><table class="p-tabla pa-esp">'
+    + p.esperar.etapas.map(e => '<tr><td class="p-tiempo" style="width:22%">' + esc(e.plazo) + '</td><td style="text-align:left">' + br(e.texto)
+      + (e.respaldo ? '<div class="pa-ref">Respaldo: ' + esc(e.respaldo) + '</div>' : '') + '</td></tr>').join('')
+    + '</table>' + (p.esperar.nota ? '<p><i>' + esc(p.esperar.nota) + '</i></p>' : '') + '</div>' : '';
+
+  const edu = p.educacion.filter(t => t.elegido);
+  const eduHtml = edu.length ? '<div class="pa-bloque"><div class="p-sub">Para aprender en esta etapa</div>'
+    + edu.map(t => '<div class="pa-tema"><b>' + esc(t.titulo) + '</b><br>' + br(t.contenido) + '</div>').join('') + '</div>' : '';
+
+  document.getElementById('printArea').innerHTML =
+    '<div class="p-head"><div class="p-marca">COMER.SANO MX</div><div class="p-titulo">Plan de alimentación</div></div>'
+    + '<div class="p-datos"><div><b>Paciente:</b> ' + esc(currentPx.nombre) + '</div><div><b>Fecha:</b> ' + esc(mes) + '</div></div>'
+    + eqHtml + abrev + distHtml + menuHtml
+    + '<div class="p-sub">Medidas</div><div>1 T = 240 ml · 1 C = 15 ml · 1 c = 5 ml</div>'
+    + '<div class="p-importante">IMPORTANTE MEDIR LOS ALIMENTOS CON TAZAS MEDIDORAS</div>'
+    + recHtml + espHtml + eduHtml
+    + '<div class="p-firma">Elaborado por: MNC Ana Ximena Alejo Muñoz Ledo. Ced prof: 12998799</div>';
+  setTimeout(() => window.print(), 50);
 }
 
 // INIT
