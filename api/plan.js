@@ -119,6 +119,37 @@ const ESQ_EDU = {
   required: ['temas'], additionalProperties: false
 };
 
+const AREAS_ID = ['ali', 'mov', 'sue', 'men', 'con', 'sus', 'gra'];
+const ESQ_AREAS = {
+  type: 'object',
+  properties: {
+    areas: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          area: { type: 'string', enum: AREAS_ID },
+          recs: {
+            type: 'array',
+            items: { type: 'object', properties: { texto: { type: 'string' }, accion: { type: 'string' } }, required: ['texto', 'accion'], additionalProperties: false }
+          }
+        },
+        required: ['area', 'recs'], additionalProperties: false
+      }
+    }
+  },
+  required: ['areas'], additionalProperties: false
+};
+
+const AREAS = `${BASE}
+Escribe recomendaciones personalizadas para la app del paciente "Mi Rueda", que trabaja 7 áreas del estilo de vida (Medicina del Estilo de Vida): ali Alimentación, mov Movimiento, sue Sueño, men Salud mental, con Conexión, sus Alcohol y tabaco, gra Gratitud.
+- 2-3 recomendaciones por área, ESPECÍFICAS para este paciente según su historia (sueño, actividad física, tabaco, alcohol, estrés, con quién come, horarios, diagnósticos, protocolos). Si un área no aplica (ej. no fuma ni toma), da 1 recomendación para mantenerlo.
+- "texto": 1-2 frases cortas, tuteo, cálido, concreto; qué hacer y por qué en pocas palabras.
+- "accion": versión corta (máximo 60 caracteres) que el paciente pueda marcar como hecha cada día, escrita en pasado y primera persona, como "Caminé 20 minutos o más" o "Dejé el celular 30 minutos antes de dormir". Vacía "" si no es algo diario.
+- Lenguaje SIN GÉNERO: nada de "acompañada", "sentado", "listo"; reescribe la frase para no marcar género. Sin emojis, sin "rayos", sin "lista de cotejo".
+- Evidencia: actividad física OMS 2020 (150-300 min moderada por semana y fuerza 2 días); pasos: meta 7,000 al día, no 10,000; sueño adulto 7 horas o más (AASM/SRS); alcohol: OMS, ningún nivel es seguro; tabaco: dejarlo por completo; gratitud: evidencia modesta, no prometas resultados.
+- En Alimentación no recomiendes leguminosas y no repitas el menú; enfócate en hábitos (horarios, comer sin pantallas, agua simple, verdura). Si el paciente debe limitar líquidos (renal o cardiaco), no recomiendes aumentar el agua.`;
+
 const GUIAS = `${BASE}
 Tu tarea: revisar los requerimientos de energía y nutrimentos de este paciente con la evidencia MÁS RECIENTE de guías de práctica clínica.
 - Busca en internet la versión vigente de las guías que apliquen a su caso (según diagnósticos, edad, embarazo, cirugía, función renal, actividad física, objetivo). Ejemplos: ADA Standards of Care, KDIGO, ESPEN, ASMBS/IFSO, ACOG, NAM/IOM ganancia de peso gestacional, EASO / Obesity Canada / AACE, ISSN, Guías Alimentarias para la población mexicana, NOM aplicables. Prioriza fuentes oficiales (sitio de la sociedad, revista, PubMed).
@@ -165,6 +196,8 @@ Escribe la sección "Qué puedes esperar" para el paciente: 3-5 etapas con plazo
 - "nota": una frase motivadora breve, sin cursilería ni emojis.
 - Lenguaje sencillo, sin tecnicismos, frases cortas.`;
       result = await pedir(sys, ctx + '\n\nEscribe "Qué puedes esperar".', ESQ_ESPERAR);
+    } else if (modo === 'areas') {
+      result = await pedir(AREAS + reglasProtocolos(ajustes) + extra, ctx + '\n\nEscribe las recomendaciones por área.', ESQ_AREAS);
     } else if (modo === 'educacion') {
       const vistos = (ajustes && ajustes.temas_vistos) || [];
       const sys = BASE + reglasProtocolos(ajustes) + `

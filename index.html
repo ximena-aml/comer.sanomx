@@ -2974,6 +2974,12 @@ const PROTOCOLOS_UI = [
   {id: 'dg', nombre: 'Diabetes gestacional', ph: 'Ej. metas de glucosa, insulina'},
   {id: 'embarazo', nombre: 'Embarazo', ph: 'Ej. semanas de gestación, suplementos'}
 ];
+const AREAS_RUEDA = [
+  {id: 'ali', nombre: 'Alimentación', color: '#D9771F'}, {id: 'mov', nombre: 'Movimiento', color: '#2479B8'},
+  {id: 'sue', nombre: 'Sueño', color: '#5A4DB2'}, {id: 'men', nombre: 'Salud mental', color: '#1F8F83'},
+  {id: 'con', nombre: 'Conexión', color: '#C9416F'}, {id: 'sus', nombre: 'Alcohol y tabaco', color: '#A33B2B'},
+  {id: 'gra', nombre: 'Gratitud', color: '#B98A0B'}
+];
 const COLOR_FODMAP = {libre: '#C6EFCE', porcion: '#FFF2A0', evitar: '#BDD7EE'};
 const ETQ_COLOR = {libre: 'libre', porcion: 'porción', evitar: 'evitar'};
 
@@ -2982,7 +2988,7 @@ let paSmae = null;
 
 function paVacio() {
   return {fecha: hoyISO(), plan_smae_id: null, ajustes: {protocolos: {}, detalles: {}, cocina: 'basico', frias: false, notas: '', n: 5},
-    menu: {}, equivalentes: [], recomendaciones: {comer_fuera: [], generales: []}, esperar: {etapas: [], nota: ''}, educacion: []};
+    menu: {}, equivalentes: [], recomendaciones: {comer_fuera: [], generales: [], areas: {}}, esperar: {etapas: [], nota: ''}, educacion: []};
 }
 
 function paPorciones(t) {
@@ -3122,6 +3128,18 @@ async function renderAlimentacion(el) {
       + '<textarea id="paEduC_' + i + '" style="min-height:80px;font-size:12px">' + esc(t.contenido) + '</textarea></div>').join('')
     + '</div>'
 
+    + '<div class="card"><div class="card-title">Recomendaciones por área (Mi Rueda)</div>'
+    + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px"><div class="text-muted" style="font-size:12px">El paciente las ve en la pestaña "Para ti". Si escribes una acción corta, la puede agregar a sus acciones del día.</div>'
+    + '<button class="btn btn-sm" id="btnAreas" onclick="paGenerarAreas()">' + (Object.keys(paActual.recomendaciones.areas || {}).length ? '↻ Rehacer' : '✦ Generar') + '</button></div>'
+    + AREAS_RUEDA.map(ar => { const recs = (paActual.recomendaciones.areas || {})[ar.id] || [];
+        return '<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px;font-weight:500;margin-bottom:6px"><span style="width:10px;height:10px;border-radius:50%;background:' + ar.color + '"></span>' + ar.nombre + '</div>'
+          + recs.map((r, i) => '<div style="display:grid;grid-template-columns:1fr 220px auto;gap:8px;margin-bottom:6px;align-items:start">'
+            + '<textarea id="paAr_' + ar.id + '_' + i + '_t" style="min-height:44px;font-size:12px">' + esc(r.texto) + '</textarea>'
+            + '<input type="text" id="paAr_' + ar.id + '_' + i + '_a" placeholder="Acción diaria (opcional)" style="font-size:12px" value="' + esc(r.accion) + '">'
+            + '<button class="btn btn-sm" style="color:var(--danger)" onclick="paArDel(\'' + ar.id + '\',' + i + ')">Quitar</button></div>').join('')
+          + '<button class="btn btn-sm" onclick="paArAdd(\'' + ar.id + '\')">+ Agregar</button></div>'; }).join('')
+    + '</div>'
+
     + '<div class="card"><div class="card-title">Enviar a Mi Rueda</div>'
     + '<div class="text-muted" style="font-size:12px;margin-bottom:10px">Crea el link para la app del paciente con sus porciones, el menú, la tabla de equivalentes, las recomendaciones, qué puede esperar y los temas marcados. Lo que el paciente registre se queda en su celular.</div>'
     + '<div class="grid3">'
@@ -3167,10 +3185,31 @@ function leerPa() {
   }
   p.esperar.etapas.forEach((e, ei) => { e.plazo = g('paEspP_' + ei); e.texto = g('paEspT_' + ei); e.respaldo = g('paEspR_' + ei); });
   if (document.getElementById('paEspN')) p.esperar.nota = g('paEspN');
+  if (document.getElementById('btnAreas')) {
+    const areas = {};
+    AREAS_RUEDA.forEach(ar => {
+      const recs = [];
+      for (let i = 0; document.getElementById('paAr_' + ar.id + '_' + i + '_t'); i++) {
+        const t = g('paAr_' + ar.id + '_' + i + '_t').trim(), ac = g('paAr_' + ar.id + '_' + i + '_a').trim().slice(0, 80);
+        if (t || ac) recs.push({texto: t, accion: ac});
+      }
+      if (recs.length) areas[ar.id] = recs;
+    });
+    p.recomendaciones.areas = areas;
+  }
   p.educacion.forEach((t, i) => { t.elegido = document.getElementById('paEduS_' + i).checked; t.titulo = g('paEduT_' + i); t.contenido = g('paEduC_' + i); });
   return p;
 }
 
+function paArAdd(a) { leerPa(); const ar = paActual.recomendaciones.areas; (ar[a] || (ar[a] = [])).push({texto: '', accion: ''}); paRepintar(); }
+function paArDel(a, i) { leerPa(); const ar = paActual.recomendaciones.areas; if (ar[a]) { ar[a].splice(i, 1); if (!ar[a].length) delete ar[a]; } paRepintar(); }
+async function paAreasDe(ctx) {
+  const r = await paPedir('areas', null, ctx);
+  const areas = {};
+  (r.areas || []).forEach(x => { if (x.recs && x.recs.length) areas[x.area] = x.recs.map(y => ({texto: y.texto, accion: (y.accion || '').slice(0, 80)})); });
+  paActual.recomendaciones.areas = areas;
+}
+function paGenerarAreas() { paConBoton('btnAreas', '✦ Generando…', () => paAreasDe()); }
 function paEditarOp(ti, oi, v) { const t = paSmae.tiempos[ti]; const op = paActual.menu[t][oi]; op.texto = v; op.editado = true; }
 function paQuitarOp(ti, oi) { leerPa(); paActual.menu[paSmae.tiempos[ti]].splice(oi, 1); renderAlimentacion(document.getElementById('tabContent')); }
 function paStatus(t) { const s = document.getElementById('paStatus'); if (!s) return; s.style.display = t ? 'block' : 'none'; s.textContent = t || ''; }
@@ -3202,7 +3241,7 @@ function paGenerarEquiv() {
   paConBoton('btnEquiv', '✦ Generando…', async () => {
     const r = await paPedir('equivalentes');
     paActual.equivalentes = (r.equivalentes || []).filter(x => (paSmae.equivalentes || {})[x.grupo] > 0 || !paSmae.equivalentes);
-    paActual.recomendaciones = {comer_fuera: r.comer_fuera || [], generales: r.generales || []};
+    paActual.recomendaciones = Object.assign(paActual.recomendaciones, {comer_fuera: r.comer_fuera || [], generales: r.generales || []});
   });
 }
 function paGenerarEsperar() {
@@ -3228,7 +3267,7 @@ async function paGenerarTodo() {
   if (hay && !confirm('Esto reemplaza todo lo que hay en el plan. ¿Continuar?')) return;
   const btn = document.getElementById('btnPaTodo'); btn.disabled = true;
   const tiempos = paSmae.tiempos || [];
-  let listos = 0; const total = tiempos.length + 3; const errores = [];
+  let listos = 0; const total = tiempos.length + 4; const errores = [];
   const avance = () => paStatus('✦ Generando el plan… ' + listos + ' de ' + total + ' partes listas (puede tardar 1-2 minutos)');
   avance();
   try {
@@ -3239,7 +3278,8 @@ async function paGenerarTodo() {
       .concat([
         tarea('Equivalentes', async () => { const r = await paPedir('equivalentes', null, ctx);
           paActual.equivalentes = (r.equivalentes || []).filter(x => (paSmae.equivalentes || {})[x.grupo] > 0);
-          paActual.recomendaciones = {comer_fuera: r.comer_fuera || [], generales: r.generales || []}; }),
+          paActual.recomendaciones = Object.assign(paActual.recomendaciones, {comer_fuera: r.comer_fuera || [], generales: r.generales || []}); }),
+        tarea('Recomendaciones por área', async () => { await paAreasDe(ctx); }),
         tarea('Qué puedes esperar', async () => { paActual.esperar = await paPedir('esperar', null, ctx); }),
         tarea('Educación', async () => { const r = await paPedir('educacion', null, ctx); paActual.educacion = (r.temas || []).map(t => Object.assign(t, {elegido: t.prioridad === 'hoy'})); })
       ]));
@@ -3271,7 +3311,7 @@ function abrirPa(id) {
   if (!n) return;
   const v = paVacio();
   paActual = {id: n.id, _px: currentPx.id, fecha: n.fecha, plan_smae_id: n.plan_smae_id, ajustes: Object.assign(v.ajustes, n.ajustes || {}),
-    menu: n.menu || {}, equivalentes: n.equivalentes || [], recomendaciones: n.recomendaciones || v.recomendaciones,
+    menu: n.menu || {}, equivalentes: n.equivalentes || [], recomendaciones: Object.assign(v.recomendaciones, n.recomendaciones || {}),
     esperar: n.esperar || v.esperar, educacion: n.educacion || []};
   if (String(n.plan_smae_id) !== String(paSmae.id)) showToast('Ojo: este plan se hizo con un Plan SMAE anterior.');
   paRepintar(); window.scrollTo(0, 0);
@@ -3308,7 +3348,8 @@ async function crearLinkRueda() {
     e: p.equivalentes.filter(x => x.alimentos.length).map(x => [(GRUPO_PRINT[x.grupo] || {nombre: x.grupo}).nombre, x.alimentos.map(a => [a.alimento, a.porcion, a.color || ''])]),
     r: {f: p.recomendaciones.comer_fuera, g: p.recomendaciones.generales.map(x => [x.tema, x.puntos])},
     s: {e: p.esperar.etapas.map(e => [e.plazo, e.texto, e.respaldo]), n: p.esperar.nota},
-    a: p.educacion.filter(t => t.elegido).map(t => [t.titulo, t.contenido])
+    a: p.educacion.filter(t => t.elegido).map(t => [t.titulo, t.contenido]),
+    p: AREAS_RUEDA.filter(ar => ((p.recomendaciones.areas || {})[ar.id] || []).length).map(ar => [ar.id, p.recomendaciones.areas[ar.id].filter(r => r.texto).map(r => [r.texto, r.accion || ''])])
   };
   const data = {v: 2, pl, k: document.getElementById('mrKcal').checked, doc};
   const dias = parseInt(g('mrDias')) || 0;
