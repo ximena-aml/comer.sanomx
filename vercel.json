@@ -8,6 +8,9 @@
     },
     "api/plan.js": {
       "maxDuration": 300
+    },
+    "api/informe.js": {
+      "maxDuration": 120
     }
   }
 }

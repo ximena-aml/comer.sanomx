@@ -634,6 +634,18 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="infModal">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-title">Informe médico</div>
+    <div class="modal-sub">Marca lo que quieres pasar al expediente. Lo que ya tenías capturado no se borra: lo nuevo se agrega. Si estabas capturando algo en la historia clínica, guárdalo antes.</div>
+    <div id="infBody" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="btn-row" style="border:none;padding:0;margin-top:16px">
+      <button class="btn btn-primary" id="infAplicarBtn" onclick="aplicarInforme()">Pasar al expediente</button>
+      <button class="btn" onclick="closeModal('infModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- PLAN IMPRESO -->
 <div id="printArea"></div>
 
@@ -803,6 +815,17 @@ async function renderDatos(el) {
   if (!medList.length) medList = [{}];
 
   el.innerHTML = `
+  <!-- INFORME MÉDICO -->
+  <div class="card">
+    <div class="card-title">Informe médico</div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+      <div style="font-size:13px;color:var(--text2);font-family:sans-serif;max-width:560px">Sube el PDF o una foto del informe (nota médica, resumen clínico, hoja de alta). La IA lee diagnósticos, cirugías, medicamentos, antecedentes y laboratorios, y tú eliges qué pasa al expediente.</div>
+      <button class="btn" onclick="document.getElementById('infFile').click()">✦ Subir informe médico</button>
+      <input type="file" id="infFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="procesarInforme(this)">
+    </div>
+    <div id="infStatus" style="display:none;margin-top:12px;padding:12px;background:var(--accent-light);border-radius:var(--radius);font-size:13px;font-family:sans-serif;color:var(--accent-text)"></div>
+  </div>
+
   <!-- INFO GENERAL -->
   <div class="card">
     <div class="card-title">Información general</div>
@@ -3451,6 +3474,124 @@ function imprimirPa() {
     + recHtml + espHtml + eduHtml
     + '<div class="p-firma">Elaborado por: MNC Ana Ximena Alejo Muñoz Ledo. Ced prof: 12998799</div>';
   imprimirListo();
+}
+
+
+// INFORME MÉDICO → historia clínica (la IA extrae; Ximena elige qué se guarda)
+let infActual = null, infHc = null, infCambios = [];
+const INF_TXT = {ahf_diabetes: 'AHF diabetes', ahf_hta: 'AHF hipertensión', ahf_cancer: 'AHF cáncer', ahf_otros: 'Otros antecedentes familiares',
+  alergias: 'Alergias', hospitalizaciones: 'Hospitalizaciones', sx_gi: 'Síntomas gastrointestinales', suplementos: 'Suplementos'};
+const infNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+
+async function procesarInforme(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (file.size > 3200000) { showToast('El archivo pesa más de 3 MB. Sube una foto o un PDF más ligero.'); return; }
+  const st = document.getElementById('infStatus');
+  st.style.display = 'block'; st.textContent = '✦ Leyendo el informe con IA… (puede tardar hasta un minuto)';
+  try {
+    const base64 = await fileToBase64(file);
+    infActual = await llamarApi('/api/informe', {base64, mediaType: file.type, parametros: PARAMETROS.map(p => p.nombre)});
+    st.style.display = 'none';
+    await abrirInforme();
+  } catch (e) {
+    st.style.display = 'none';
+    showToast('Error: ' + (e.message || e));
+  }
+}
+
+async function abrirInforme() {
+  const r = infActual;
+  const { data: hc } = await sb.from('historias_clinicas').select('*').eq('paciente_id', currentPx.id).maybeSingle();
+  infHc = hc || null;
+  const h = hc || {};
+  infCambios = [];
+  const fila = (c, html) => { c.i = infCambios.length; infCambios.push(c);
+    return '<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;font-family:sans-serif;text-transform:none;letter-spacing:0;color:var(--text)">'
+      + '<input type="checkbox" id="inf_' + c.i + '"' + (c.on ? ' checked' : '') + ' style="margin-top:3px">' + '<span>' + html + '</span></label>'; };
+  let html = '';
+  if (r.resumen) html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:12px;margin-bottom:12px;font-size:13px;font-family:sans-serif;white-space:pre-wrap">'
+    + '<b>' + esc(r.origen || 'Informe') + (r.fecha_informe ? ' · ' + esc(r.fecha_informe) : '') + '</b>\n' + esc(r.resumen) + '</div>';
+  const sec = t => '<div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin:14px 0 2px">' + t + '</div>';
+  // datos del paciente
+  let p = '';
+  if (r.paciente.fecha_nac && r.paciente.fecha_nac !== currentPx.fecha_nac)
+    p += fila({tipo: 'px', campo: 'fecha_nac', valor: r.paciente.fecha_nac, on: !currentPx.fecha_nac}, 'Fecha de nacimiento: <b>' + esc(r.paciente.fecha_nac) + '</b>' + (currentPx.fecha_nac ? ' <span style="color:var(--danger)">(en el expediente: ' + esc(currentPx.fecha_nac) + ')</span>' : ''));
+  if (r.paciente.sexo && r.paciente.sexo !== currentPx.sexo)
+    p += fila({tipo: 'px', campo: 'sexo', valor: r.paciente.sexo, on: !currentPx.sexo}, 'Sexo: <b>' + esc(r.paciente.sexo) + '</b>' + (currentPx.sexo ? ' <span style="color:var(--danger)">(en el expediente: ' + esc(currentPx.sexo) + ')</span>' : ''));
+  if (p) html += sec('Datos del paciente') + p;
+  // listas
+  const enfYa = (h.enfermedades_list || []).map(x => infNorm(x.enf));
+  let l = (r.enfermedades || []).filter(x => x.enf && !enfYa.includes(infNorm(x.enf)))
+    .map(x => fila({tipo: 'enf', valor: {enf: x.enf, anio: x.anio || ''}, on: true}, esc(x.enf) + (x.anio ? ' <span style="color:var(--text2)">(' + esc(x.anio) + ')</span>' : ''))).join('');
+  if (l) html += sec('Enfermedades') + l;
+  const cxYa = (h.cirugias_list || []).map(x => infNorm(x.cx));
+  l = (r.cirugias || []).filter(x => x.cx && !cxYa.includes(infNorm(x.cx)))
+    .map(x => fila({tipo: 'cx', valor: {cx: x.cx, fecha: x.fecha || ''}, on: true}, esc(x.cx) + (x.fecha ? ' <span style="color:var(--text2)">(' + esc(x.fecha) + ')</span>' : ''))).join('');
+  if (l) html += sec('Cirugías') + l;
+  const medYa = parseMeds(h.medicamentos).map(x => infNorm(x.med));
+  l = (r.medicamentos || []).filter(x => x.med && !medYa.includes(infNorm(x.med)))
+    .map(x => fila({tipo: 'med', valor: {med: x.med, dosis: x.dosis || '', frec: x.frec || ''}, on: true}, '<b>' + esc(x.med) + '</b> ' + esc([x.dosis, x.frec].filter(Boolean).join(' · ')))).join('');
+  if (l) html += sec('Medicamentos actuales') + l;
+  // campos de texto
+  l = Object.keys(INF_TXT).filter(k => r.texto[k] && !infNorm(h[k]).includes(infNorm(r.texto[k])))
+    .map(k => fila({tipo: 'txt', campo: k, valor: r.texto[k], on: true}, INF_TXT[k] + ': <b>' + esc(r.texto[k]) + '</b>' + (h[k] ? ' <span style="color:var(--text2)">(se agrega a lo que ya tienes)</span>' : ''))).join('');
+  if (l) html += sec('Antecedentes y otros') + l;
+  // laboratorios
+  const labs = (r.laboratorios.resultados || []).filter(x => x.nombre && x.valor !== '' && PARAMETROS.some(pp => pp.nombre === x.nombre));
+  if (labs.length) {
+    const fecha = r.laboratorios.fecha || r.fecha_informe || hoyISO();
+    html += sec('Laboratorios') + fila({tipo: 'lab', valor: {fecha, labs}, on: true},
+      'Guardar ' + labs.length + ' resultado' + (labs.length > 1 ? 's' : '') + ' del <b>' + esc(fecha) + '</b> en Laboratorios: '
+      + labs.map(x => esc(x.nombre) + ' ' + esc(x.valor)).join(' · '));
+  }
+  if (!infCambios.length) html += '<div class="text-muted" style="padding:12px 0">No encontré datos nuevos para el expediente en este informe' + (r.resumen ? '; arriba tienes el resumen.' : '.') + '</div>';
+  document.getElementById('infBody').innerHTML = html;
+  document.getElementById('infAplicarBtn').style.display = infCambios.length ? '' : 'none';
+  document.getElementById('infModal').classList.add('open');
+}
+
+async function aplicarInforme() {
+  const elegidos = infCambios.filter(c => document.getElementById('inf_' + c.i).checked);
+  if (!elegidos.length) { closeModal('infModal'); return; }
+  const btn = document.getElementById('infAplicarBtn'); btn.disabled = true;
+  try {
+    const h = infHc || {};
+    const upd = {};
+    const enf = elegidos.filter(c => c.tipo === 'enf').map(c => c.valor);
+    if (enf.length) upd.enfermedades_list = (h.enfermedades_list || []).filter(x => x && x.enf).concat(enf);
+    const cx = elegidos.filter(c => c.tipo === 'cx').map(c => c.valor);
+    if (cx.length) upd.cirugias_list = (h.cirugias_list || []).filter(x => x && x.cx).concat(cx);
+    const med = elegidos.filter(c => c.tipo === 'med').map(c => c.valor);
+    if (med.length) upd.medicamentos = JSON.stringify(parseMeds(h.medicamentos).filter(x => x && x.med).concat(med));
+    elegidos.filter(c => c.tipo === 'txt').forEach(c => { upd[c.campo] = h[c.campo] ? h[c.campo] + '; ' + c.valor : c.valor; });
+    if (Object.keys(upd).length) {
+      const res = infHc ? await sb.from('historias_clinicas').update(upd).eq('paciente_id', currentPx.id)
+                        : await sb.from('historias_clinicas').insert(Object.assign({paciente_id: currentPx.id}, upd));
+      if (res.error) throw res.error;
+    }
+    const px = {};
+    elegidos.filter(c => c.tipo === 'px').forEach(c => { px[c.campo] = c.valor; });
+    if (Object.keys(px).length) {
+      const res = await sb.from('pacientes').update(px).eq('id', currentPx.id);
+      if (res.error) throw res.error;
+      Object.assign(currentPx, px);
+    }
+    const lab = elegidos.find(c => c.tipo === 'lab');
+    if (lab) {
+      const resultados = {};
+      lab.valor.labs.forEach(x => { resultados[x.nombre] = x.valor; });
+      const res = await sb.from('laboratorios').insert({paciente_id: currentPx.id, fecha: lab.valor.fecha, resultados});
+      if (res.error) throw res.error;
+    }
+    closeModal('infModal');
+    showToast('Informe pasado al expediente ✓');
+    await loadPacientes();
+    loadTab();
+  } catch (e) {
+    showToast('Error: ' + (e.message || e));
+  } finally { btn.disabled = false; }
 }
 
 // INIT
